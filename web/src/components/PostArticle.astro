@@ -1,0 +1,22 @@
+---
+import matter from "gray-matter";
+import { marked } from "marked";
+import { STRINGS, href } from "../lib/i18n.js";
+const { post, lang } = Astro.props;
+const t = STRINGS[lang];
+const parsed = matter(post.body);
+const html = marked.parse(parsed.content);
+const title = parsed.data.title || post.title;
+const dateStr = parsed.data.date
+  ? new Date(parsed.data.date).toLocaleDateString()
+  : new Date(post.updated_at).toLocaleDateString();
+---
+<article>
+  <h1>{title}</h1>
+  <p class="meta">{dateStr}</p>
+  <div set:html={html} />
+</article>
+<p style="margin-top:2rem">
+  <a href={href(lang, "/blog")}>{t.allPosts}</a> ·
+  <a href={href(lang, `/podcast/${post.topic_id}`)}>{t.listenEpisode}</a>
+</p>

@@ -1,0 +1,30 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Listmonk public subscription form target. Configurable; the list UUID is wired in task group 7.
+const listmonkUrl = import.meta.env.PUBLIC_LISTMONK_URL || "http://localhost:9000";
+const listUuid = import.meta.env.PUBLIC_LISTMONK_LIST_UUID || "";
+---
+
+<Base title="Assinar" lang="pt-BR" alt="/en/subscribe" description="Receba a newsletter do Vaccari's Code Podcast — tendências de software e IA, toda semana.">
+  <h1>Assine</h1>
+  <p class="muted">
+    Um resumo semanal das tendências de desenvolvimento de software e IA que valem o seu tempo. Sem
+    spam, cancele quando quiser, compatível com a LGPD.
+  </p>
+
+  <form class="subscribe" method="post" action={`${listmonkUrl}/subscription/form`}>
+    <input type="hidden" name="nonce" value="" />
+    {listUuid && <input type="hidden" name="l" value={listUuid} />}
+    <input type="text" name="name" placeholder="Seu nome (opcional)" />
+    <input type="email" name="email" required placeholder="voce@exemplo.com" />
+    <button type="submit">Quero receber a newsletter</button>
+  </form>
+
+  {!listUuid && (
+    <p class="muted" style="margin-top:1rem">
+      <span class="badge">configuração</span> Defina <code>PUBLIC_LISTMONK_LIST_UUID</code> (e uma
+      lista pública no Listmonk) para concluir o double opt-in — isso é o grupo de tarefas 7.
+    </p>
+  )}
+</Base>

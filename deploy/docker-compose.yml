@@ -1,0 +1,236 @@
+# VPS stack — everything public and stateful runs here.
+# Usage (from deploy/):
+#   docker compose up -d postgres minio
+#   docker compose run --rm migrate
+#   docker compose up -d
+#
+# Env is read from ../.env (see ../.env.example).
+
+name: boosternews
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      LISTMONK_DB: ${LISTMONK_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the separate Listmonk database on first boot.
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9001:9001"   # web console (optional; remove in prod)
+      - "9100:9000"   # S3 API on host:9100 so the browser can play episode audio in dev
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: apply database migrations, then exit.
+  migrate:
+    build:
+      context: ..
+      dockerfile: pipeline/Dockerfile
+    env_file: ../.env
+    command: ["python", "-m", "boosternews.migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # One-shot: build the Astro static site (queries Postgres at build time) into web/dist.
+  web-build:
+    image: node:22-alpine
+    working_dir: /web
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost}
+      PUBLIC_LISTMONK_URL: ${PUBLIC_LISTMONK_URL:-http://localhost:9000}
+      PUBLIC_LISTMONK_LIST_UUID: ${PUBLIC_LISTMONK_LIST_UUID:-}
+      PUBLIC_LISTMONK_LIST_UUID_EN: ${PUBLIC_LISTMONK_LIST_UUID_EN:-}
+    volumes:
+      - ../web:/web
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npm run build"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  pipeline:
+    build:
+      context: ..
+      dockerfile: pipeline/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    # Task group 1: validate config + check Postgres/storage, then idle (no scheduler yet).
+    # Later groups replace this with the long-running ingest/generate/publish scheduler.
+    command: ["sh", "-c", "python -m boosternews && echo '[pipeline] checks passed; idling until the scheduler lands in a later task group' && tail -f /dev/null"]
+
+  # Local dev mail catcher: Listmonk delivers here; view opt-in/campaign emails at :8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+  listmonk:
+    image: listmonk/listmonk:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LISTMONK_app__address: "0.0.0.0:9000"
+      LISTMONK_app__root_url: ${LISTMONK_ROOT_URL:-http://localhost:9000}
+      # Auto-provision the super admin non-interactively (Docker automation).
+      LISTMONK_ADMIN_USER: ${LISTMONK_ADMIN_USER:-admin}
+      LISTMONK_ADMIN_PASSWORD: ${LISTMONK_ADMIN_PASSWORD:-listmonkdev123}
+      LISTMONK_db__host: postgres
+      LISTMONK_db__port: "5432"
+      LISTMONK_db__user: ${POSTGRES_USER}
+      LISTMONK_db__password: ${POSTGRES_PASSWORD}
+      LISTMONK_db__database: ${LISTMONK_DB}
+    # Listmonk is served at the ROOT of its own origin (it doesn't support a subpath — it
+    # emits absolute /admin redirects). Locally that's a published port; in prod use a
+    # dedicated subdomain (e.g. news.tiagovaccari.com) with its own Caddy block.
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./listmonk/config.toml:/listmonk/config.toml:ro
+    # First run only: initialize Listmonk's schema (see deploy/README.md):
+    #   docker compose run --rm listmonk ./listmonk --install --yes --config /listmonk/config.toml
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - listmonk
+      - dashboard
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      # Dashboard behind Caddy on its own origin, with Basic Auth (second layer). The username is
+      # injected here; the bcrypt password hash lives in the Caddyfile. Regenerate the hash with:
+      #   docker run --rm caddy:2 caddy hash-password --plaintext 'NEWPASS'
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN}
+      DASHBOARD_USER: ${DASHBOARD_USER}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../web/dist:/srv:ro            # the Astro static build (placeholder until task group 6)
+      - caddydata:/data
+      - caddyconfig:/config
+
+  # Narration job API (FastAPI). The home GPU sound-worker calls this over HTTPS (via Caddy /api)
+  # to claim jobs and upload audio; on completion the VPS assembles + stores the episode audio.
+  narration-api:
+    build:
+      context: ..
+      dockerfile: pipeline/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    command:
+      ["uvicorn", "boosternews.narration.app:app", "--host", "0.0.0.0", "--port", "8090"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8090:8090"
+
+  # GPU sound-worker — runs on THIS machine (all-in-one local) talking to narration-api over the
+  # internal network. Needs an NVIDIA GPU visible to Docker + deploy/voice/reference.wav.
+  #   docker compose --profile worker up -d sound-worker   (or `make worker`)
+  # (For the remote-home topology instead, use deploy/compose.home.yml.)
+  sound-worker:
+    build:
+      context: ../sound-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      VPS_API_URL: http://narration-api:8090
+      WORKER_AUTH_TOKEN: ${WORKER_AUTH_TOKEN}
+      WORKER_ID: ${WORKER_ID:-home-4060ti}
+      VOICE_ID: ${VOICE_ID:-tiago}
+      REFERENCE_SAMPLE_PATH: /data/voice/${REFERENCE_SAMPLE_FILE:-reference.wav}
+    volumes:
+      - ./voice:/data/voice:ro
+      - tts-cache:/root/.local/share/tts
+    depends_on:
+      - narration-api
+    profiles: ["worker"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Orchestration scheduler (task group 9). Profiled so it only runs when asked:
+  #   docker compose --profile scheduler up -d scheduler   (or `make scheduler`)
+  # In production it runs always-on (see compose.prod.yml / DEPLOY.md).
+  scheduler:
+    build:
+      context: ..
+      dockerfile: pipeline/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    command: ["python", "-m", "boosternews.scheduler"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["scheduler"]
+
+  # Human review/approval dashboard (FastAPI). Private in prod; published locally for dev.
+  dashboard:
+    build:
+      context: ..
+      dockerfile: pipeline/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    command:
+      ["uvicorn", "boosternews.dashboard.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+  miniodata:
+  caddydata:
+  caddyconfig:
+  tts-cache:

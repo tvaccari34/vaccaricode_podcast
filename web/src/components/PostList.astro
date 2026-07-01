@@ -1,0 +1,21 @@
+---
+import matter from "gray-matter";
+import { STRINGS, href } from "../lib/i18n.js";
+const { posts, lang } = Astro.props;
+const t = STRINGS[lang];
+function excerpt(body) {
+  const { content } = matter(body);
+  const p = content.trim().split("\n\n").find((x) => x.trim() && !x.startsWith("#")) || "";
+  return p.replace(/[#*`>]/g, "").slice(0, 200);
+}
+---
+{posts.length === 0 && <p class="muted">{t.noPosts}</p>}
+<ul class="bare">
+  {posts.map((p) => (
+    <li class="card">
+      <h3><a href={href(lang, `/blog/${p.topic_id}`)}>{p.title}</a></h3>
+      <p class="meta">{new Date(p.updated_at).toLocaleDateString()}</p>
+      <p>{excerpt(p.body)}…</p>
+    </li>
+  ))}
+</ul>

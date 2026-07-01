@@ -1,0 +1,17 @@
+---
+import Base from "../../../layouts/Base.astro";
+import EpisodeArticle from "../../../components/EpisodeArticle.astro";
+import { getPublishedEpisodes } from "../../../lib/db.js";
+
+export async function getStaticPaths() {
+  const episodes = await getPublishedEpisodes("en");
+  return episodes.map((episode) => ({ params: { id: episode.topic_id }, props: { episode } }));
+}
+
+const { episode } = Astro.props;
+const lang = "en";
+---
+
+<Base title={episode.title} lang={lang} alt={`/podcast/${episode.topic_id}`}>
+  <EpisodeArticle episode={episode} lang={lang} />
+</Base>

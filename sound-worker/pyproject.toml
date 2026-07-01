@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boosternews-sound-worker"
+version = "0.1.0"
+description = "Home GPU worker that synthesizes podcast narration in a cloned voice (XTTS-v2)"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic-settings>=2.2",
+    "httpx>=0.27",
+    # Heavy ML deps are installed in the Docker image (CUDA wheels). Pinned there, not here:
+    #   coqui-tts (XTTS-v2), torch
+]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.5", "black>=24.0", "pytest>=8.0"]
+
+[project.scripts]
+boosternews-sound-worker = "sound_worker.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.black]
+line-length = 100

@@ -1,0 +1,22 @@
+---
+import Base from "../../layouts/Base.astro";
+
+const listmonkUrl = import.meta.env.PUBLIC_LISTMONK_URL || "http://localhost:9000";
+const listUuid = import.meta.env.PUBLIC_LISTMONK_LIST_UUID_EN || "";
+---
+
+<Base title="Subscribe" lang="en" alt="/subscribe" description="Get the Vaccari's Code Podcast newsletter — software & AI trends, weekly.">
+  <h1>Subscribe</h1>
+  <p class="muted">
+    A weekly digest of the software-development and AI trends worth your time. No spam, unsubscribe
+    anytime, GDPR/LGPD friendly.
+  </p>
+
+  <form class="subscribe" method="post" action={`${listmonkUrl}/subscription/form`}>
+    <input type="hidden" name="nonce" value="" />
+    {listUuid && <input type="hidden" name="l" value={listUuid} />}
+    <input type="text" name="name" placeholder="Your name (optional)" />
+    <input type="email" name="email" required placeholder="you@example.com" />
+    <button type="submit">Get the newsletter</button>
+  </form>
+</Base>

@@ -1,0 +1,17 @@
+---
+import Base from "../../layouts/Base.astro";
+import PostArticle from "../../components/PostArticle.astro";
+import { getPublishedPosts } from "../../lib/db.js";
+
+export async function getStaticPaths() {
+  const posts = await getPublishedPosts("pt-BR");
+  return posts.map((post) => ({ params: { id: post.topic_id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const lang = "pt-BR";
+---
+
+<Base title={post.title} lang={lang} alt={`/en/blog/${post.topic_id}`}>
+  <PostArticle post={post} lang={lang} />
+</Base>

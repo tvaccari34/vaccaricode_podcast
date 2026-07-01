@@ -1,0 +1,22 @@
+# Minimal Listmonk config. Connection details are also provided via LISTMONK_* env vars in
+# docker-compose.yml (env wins). Keep real SMTP credentials in ../.env, not here.
+#
+# Pluggable SMTP: add BOTH providers in the Listmonk admin UI (Settings → SMTP) — one for
+# Amazon SES and one for Resend — and toggle which is enabled to switch providers with no code
+# change. The values below are placeholders for the first-run install.
+
+[app]
+address = "0.0.0.0:9000"
+admin_username = "admin"
+# Set a real password on first run via the Listmonk UI / env; do not commit secrets.
+
+[db]
+host = "postgres"
+port = 5432
+user = "boosternews"
+password = "change-me-strong"
+database = "listmonk"
+ssl_mode = "disable"
+max_open = 25
+max_idle = 25
+max_lifetime = "300s"

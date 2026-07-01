@@ -1,0 +1,14 @@
+---
+import Base from "../../layouts/Base.astro";
+import PostList from "../../components/PostList.astro";
+import { STRINGS } from "../../lib/i18n.js";
+import { getPublishedPosts } from "../../lib/db.js";
+const lang = "pt-BR";
+const t = STRINGS[lang];
+const posts = await getPublishedPosts(lang);
+---
+
+<Base title={t.nav.blog} lang={lang} alt="/en/blog" description="Posts sobre desenvolvimento de software e tendências de IA.">
+  <h1>{t.nav.blog}</h1>
+  <PostList posts={posts} lang={lang} />
+</Base>

@@ -1,0 +1,15 @@
+---
+import Base from "../../layouts/Base.astro";
+import EpisodeList from "../../components/EpisodeList.astro";
+import { STRINGS } from "../../lib/i18n.js";
+import { getPublishedEpisodes } from "../../lib/db.js";
+const lang = "pt-BR";
+const t = STRINGS[lang];
+const episodes = await getPublishedEpisodes(lang);
+---
+
+<Base title={t.nav.podcast} lang={lang} alt="/en/podcast" description="Episódios narrados sobre software e tendências de IA.">
+  <h1>{t.nav.podcast}</h1>
+  <p class="muted">{t.podcastIntro}</p>
+  <EpisodeList episodes={episodes} lang={lang} />
+</Base>

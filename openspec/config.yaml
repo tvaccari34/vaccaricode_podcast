@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Project: "boosternews" — an automated content factory that discovers trends in
+  the IT/software-development space and produces a blog, a newsletter, and a podcast
+  (script + AI narration) from the same source material. One discovered news item can
+  fan out into a blog post AND a podcast episode AND a newsletter section.
+
+  Owner/brand: Tiago Vaccari (tiagovaccari.com). Sr Software Engineer leading AI
+  initiatives; 20+ yrs experience; moved UK -> US (Orlando, FL) in 2023; Brazilian
+  origin. The public site must include a short bio/about page.
+
+  Inspiration / references:
+    - akitaonrails.com + akitaonrails.github.io (Hugo static site, date-based markdown
+      content/YYYY/MM/DD/, frequent posts on AI/LLMs, programming languages, devops).
+    - themakitachronicles.com (custom self-hosted weekly newsletter, themed subscribe
+      page, double opt-in, LGPD/privacy messaging, self-owned subscriber data).
+
+  Decided tech stack (Option A, locked with the user):
+    - Content pipeline: Python (trend discovery via RSS/APIs with feedparser, article
+      extraction with trafilatura, AI generation via Google Gemini (google-genai SDK), audio
+      assembly with ffmpeg/pydub). Orchestrated as scheduled jobs.
+    - Website (blog + podcast + about + subscribe): Astro (astro.build) static site,
+      content collections of markdown/MDX, generates RSS + iTunes podcast feed.
+    - Newsletter: self-hosted Listmonk (lists, double opt-in, themed subscribe page,
+      campaigns, analytics); sending through a PLUGGABLE transactional SMTP provider —
+      switchable between Amazon SES and Resend via Listmonk SMTP server config (no code change).
+    - Sound/TTS: a home GPU "sound-worker" (NVIDIA RTX 4060 Ti) running XTTS-v2 to
+      narrate in Tiago's OWN CLONED VOICE (zero-shot from a reference sample). It is the
+      ONLY component that runs at home; ffmpeg assembly happens on the VPS.
+    - Data: PostgreSQL (pipeline state, trends, drafts, approvals); object storage
+      (S3-compatible / MinIO) for audio files.
+    - Publishing autonomy: human review queue — pipeline generates drafts into an
+      approval dashboard; a human approves before blog/newsletter/podcast go live.
+    - LLM provider: Google Gemini Flash (default model gemini-2.5-flash). Wrapped behind a
+      thin provider module (boosternews.llm) so it can be swapped later.
+    - Deployment: an always-on VPS runs everything public/stateful via Docker Compose —
+      Astro site (served over TLS), pipeline, PostgreSQL, object storage, Listmonk, review
+      dashboard. The home computer runs ONLY a GPU sound-worker that PULLS narration jobs
+      from the VPS (outbound HTTPS only, no inbound ports / no static IP) and uploads audio
+      back. If the home box is offline, jobs queue on the VPS; the public site is unaffected.
+
+  Conventions: Python (ruff/black, pytest); Astro/TypeScript for the site; everything
+  containerized; secrets via env; LGPD/GDPR-conscious subscriber handling.

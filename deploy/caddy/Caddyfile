@@ -1,0 +1,49 @@
+# Caddy serves the static Astro site over TLS (prod) / HTTP (dev). {$SITE_DOMAIN} is injected
+# from the environment: a bare domain (tiagovaccari.com) → automatic HTTPS; "http://localhost"
+# → plain HTTP for local dev.
+#
+# NOTE: Listmonk is NOT proxied under a subpath here — it only works hosted at the root of an
+# origin (it emits absolute /admin redirects). Locally, reach it on its published port
+# http://localhost:9000/. In production, give it a dedicated subdomain with its own block:
+#
+#   news.tiagovaccari.com {
+#       reverse_proxy listmonk:9000
+#   }
+
+{$SITE_DOMAIN} {
+	encode gzip zstd
+
+	# Narration job API for the home GPU sound-worker (VPS_API_URL = https://<domain>/api).
+	handle_path /api/* {
+		reverse_proxy narration-api:8090
+	}
+
+	# Episode audio served from object storage.
+	handle_path /audio/* {
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+}
+
+# Review dashboard — its own origin, TLS auto in prod (bare domain), plain HTTP in dev
+# (http://dashboard.localhost). Caddy adds Basic Auth in front (a second layer on top of the
+# dashboard app's own auth), then reverse-proxies to the private dashboard service.
+# Regenerate the password hash: docker run --rm caddy:2 caddy hash-password --plaintext 'NEWPASS'
+{$DASHBOARD_DOMAIN} {
+	basic_auth {
+		{$DASHBOARD_USER} $2a$14$Pn0JQWOIn4FD/0zQcCbNY.TGkuBSN7K5NouuKrLK/HH2M7u6BCse2
+	}
+	reverse_proxy dashboard:8080
+}
+
+# Local/dev fallback when you hit the box directly by IP/host on port 80.
+:80 {
+	encode gzip
+	root * /srv
+	file_server
+}

@@ -1,0 +1,37 @@
+# Home GPU sound-worker stack. Runs ONLY on Tiago's home computer (NVIDIA RTX 4060 Ti).
+# Requires the NVIDIA Container Toolkit on the host.
+# Usage (from deploy/):
+#   docker compose -f compose.home.yml up -d
+#
+# This container opens NO inbound ports — it only makes outbound HTTPS calls to the VPS.
+
+name: boosternews-home
+
+services:
+  sound-worker:
+    build:
+      context: ../sound-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      VPS_API_URL: ${VPS_API_URL}
+      WORKER_AUTH_TOKEN: ${WORKER_AUTH_TOKEN}
+      WORKER_ID: ${WORKER_ID:-home-4060ti}
+      VOICE_ID: ${VOICE_ID:-tiago}
+      REFERENCE_SAMPLE_PATH: /data/voice/reference.wav
+    volumes:
+      # The private cloned-voice reference sample + model cache stay on the home machine.
+      - ./voice:/data/voice:ro
+      - hf-cache:/root/.local/share/tts
+    # GPU access via the NVIDIA Container Toolkit:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  hf-cache:

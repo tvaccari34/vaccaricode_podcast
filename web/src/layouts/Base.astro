@@ -1,0 +1,68 @@
+---
+import "../styles/global.css";
+import { STRINGS, href } from "../lib/i18n.js";
+
+const { title, description, lang = "pt-BR", alt } = Astro.props;
+const t = STRINGS[lang];
+const siteName = "Vaccari's Code Podcast";
+const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagline}`;
+// Where the PT/EN toggle points: the equivalent page if given, else the other language's home.
+const otherHome = STRINGS[t.other].base || "/";
+const toggleHref = alt || otherHome;
+---
+
+<!doctype html>
+<html lang={t.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS" href={href(lang, "/rss.xml")} />
+    <link rel="alternate" type="application/rss+xml" title="Podcast" href={href(lang, "/podcast/feed.xml")} />
+    <script is:inline>
+      const t = localStorage.getItem("theme");
+      if (t) document.documentElement.setAttribute("data-theme", t);
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.setAttribute("data-theme", "dark");
+    </script>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href={t.base || "/"}>Vaccari's Code Podcast</a>
+        <nav>
+          <a href={href(lang, "/blog")}>{t.nav.blog}</a>
+          <a href={href(lang, "/podcast")}>{t.nav.podcast}</a>
+          <a href={href(lang, "/about")}>{t.nav.about}</a>
+          <a href={href(lang, "/subscribe")}>{t.nav.subscribe}</a>
+          <a class="langswitch" href={toggleHref} title="Change language">{t.otherLabel}</a>
+          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">◐</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        © {new Date().getFullYear()} Tiago Vaccari · {t.footer} ·
+        <a href={href(lang, "/rss.xml")}>{t.rssLabel}</a> ·
+        <a href={href(lang, "/podcast/feed.xml")}>{t.feedLabel}</a>
+      </div>
+    </footer>
+
+    <script is:inline>
+      document.getElementById("theme-toggle")?.addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+      });
+    </script>
+  </body>
+</html>

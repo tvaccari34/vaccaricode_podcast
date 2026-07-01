@@ -1,0 +1,22 @@
+---
+import { marked } from "marked";
+import { STRINGS, href } from "../lib/i18n.js";
+const { episode, lang } = Astro.props;
+const t = STRINGS[lang];
+const notesHtml = episode.show_notes ? marked.parse(episode.show_notes) : "";
+---
+<article>
+  <h1>{episode.title}</h1>
+  <p class="meta">{new Date(episode.updated_at).toLocaleDateString()}</p>
+  {episode.audio_url ? (
+    <audio controls preload="none" src={episode.audio_url} style="width:100%"></audio>
+  ) : (
+    <p><span class="badge">{t.audioSoon}</span></p>
+  )}
+  <h2>{t.showNotes}</h2>
+  <div set:html={notesHtml} />
+</article>
+<p style="margin-top:2rem">
+  <a href={href(lang, "/podcast")}>{t.allEpisodes}</a> ·
+  <a href={href(lang, `/blog/${episode.topic_id}`)}>{t.readPost}</a>
+</p>

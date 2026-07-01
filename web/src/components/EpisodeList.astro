@@ -1,0 +1,17 @@
+---
+import { STRINGS, href } from "../lib/i18n.js";
+const { episodes, lang } = Astro.props;
+const t = STRINGS[lang];
+---
+{episodes.length === 0 && <p class="muted">{t.noEpisodes}</p>}
+<ul class="bare">
+  {episodes.map((e) => (
+    <li class="card">
+      <h3><a href={href(lang, `/podcast/${e.topic_id}`)}>{e.title}</a></h3>
+      <p class="meta">
+        {new Date(e.updated_at).toLocaleDateString()}
+        {!e.audio_url && <> · <span class="badge">{t.audioSoon}</span></>}
+      </p>
+    </li>
+  ))}
+</ul>

@@ -1,0 +1,22 @@
+# Production overrides. Use together with the base file:
+#   docker compose --env-file .env -f deploy/docker-compose.yml -f deploy/compose.prod.yml \
+#     --profile scheduler up -d
+#
+# - Closes dev-only published ports (DB consoles, Listmonk, dashboard, mailpit) so they are NOT
+#   exposed on the public internet. Reach them over a VPN/SSH tunnel, or front with auth.
+# - Caddy provisions TLS automatically when SITE_DOMAIN in .env is the real domain
+#   (e.g. tiagovaccari.com) pointed at this host.
+# - In prod, point Listmonk SMTP at SES/Resend (not Mailpit) — see DEPLOY.md.
+name: boosternews
+
+services:
+  minio:
+    ports: [] # console not public; use `mc` or a tunnel
+  listmonk:
+    ports: [] # admin reached via tunnel; public subscribe goes through Caddy
+  dashboard:
+    ports: [] # KEEP PRIVATE — tunnel/VPN/firewall only
+  mailpit:
+    ports: [] # not used in prod (Listmonk → SES/Resend); left unexposed
+  scheduler:
+    restart: unless-stopped
