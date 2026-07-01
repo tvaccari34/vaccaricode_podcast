@@ -2,6 +2,10 @@
 
 End-to-end guide: secrets, the content flow, the scheduler, and production deployment.
 
+> **First time deploying to a VPS?** Follow the step-by-step [`VPS_DEPLOY.md`](VPS_DEPLOY.md)
+> (VPS provisioning, DNS, private-repo access, secret rotation, TLS). This file is the terser
+> operations reference for when you already know the layout.
+
 ## Architecture
 
 ```
