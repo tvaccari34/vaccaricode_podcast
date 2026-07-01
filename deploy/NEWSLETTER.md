@@ -22,22 +22,42 @@ Listmonk holds **multiple named SMTP servers** (Admin → Settings → SMTP). We
 | Server | Enabled | Use |
 |--------|---------|-----|
 | Mailpit (dev) | ✅ | local testing — catches all mail |
-| Amazon SES | ⬜ | production |
-| Resend | ⬜ | production alternative |
+| Amazon SES | ⬜ | production alternative |
+| Resend | ✅ | production (chosen) |
 
 **Switching provider = flip `enabled`** on the desired server (UI, or the `settings` row) — no code
 change. For production, disable Mailpit, fill the SES *or* Resend host/username/password, enable
-it, and set the From address.
+it, and set the From address. These SMTP settings live in Listmonk's DB via the admin UI — the
+`SMTP_*` lines in `.env` are informational only and are **not** read by Listmonk.
+
+### Resend (production — chosen provider)
+
+Concrete Listmonk SMTP server settings (Admin → Settings → SMTP → add server):
+
+| Field | Value |
+|-------|-------|
+| Host | `smtp.resend.com` |
+| Port | `587` (STARTTLS) |
+| Auth protocol | `LOGIN` |
+| Username | `resend` |
+| Password | a Resend **API key** (`re_…`) with *Sending* permission |
+| From email | `news@tiagovaccari.com` (must be on the verified domain) |
+| TLS | STARTTLS enabled |
+
+Enable this server, disable Mailpit, send a test.
 
 ### Domain auth (production, DNS)
 
-Before sending from `tiagovaccari.com`, add these DNS records for the chosen provider:
+Verify `tiagovaccari.com` in the **Resend dashboard → Domains → Add Domain** *before* enabling the
+server. Resend then shows the **exact** records to add at your DNS host — copy them verbatim (values
+are generated per-domain). They are, in shape:
 
-- **SPF:** `TXT @  "v=spf1 include:amazonses.com ~all"` (SES) or the Resend-provided include.
-- **DKIM:** the CNAME/TXT records the provider gives you (SES: 3 CNAMEs; Resend: provided records).
-- **DMARC:** `TXT _dmarc  "v=DMARC1; p=none; rua=mailto:dmarc@tiagovaccari.com"`.
+- **MX** + **SPF** on the sending subdomain — e.g. `send.tiagovaccari.com` MX →
+  `feedback-smtp.<region>.amazonses.com`, and `TXT send  "v=spf1 include:amazonses.com ~all"`.
+- **DKIM:** a `TXT resend._domainkey` record with the provided public key.
+- **DMARC** (recommended): `TXT _dmarc  "v=DMARC1; p=none; rua=mailto:dmarc@tiagovaccari.com"`.
 
-Verify the domain in the provider console before enabling the server.
+Wait for Resend to show the domain as **Verified** before sending.
 
 ## Campaign sending (pipeline → Listmonk API)
 

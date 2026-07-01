@@ -222,8 +222,10 @@ In the Listmonk UI:
 1. **Lists → create two lists** — one Portuguese, one English (the audiences are different
    countries). Note each list's **numeric ID** and its **public UUID**.
 2. **Settings → API users → new** (name it `blog_api`) — copy the token.
-3. **Settings → SMTP** — configure Amazon SES or Resend (host, port 587, credentials, `SMTP_FROM`).
-   See [`NEWSLETTER.md`](NEWSLETTER.md) for SES/Resend specifics and DNS (SPF/DKIM/DMARC).
+3. **Settings → SMTP** — add a **Resend** server: host `smtp.resend.com`, port `587` (STARTTLS),
+   username `resend`, password = a Resend API key (`re_…`), From `news@tiagovaccari.com`. Enable it
+   and disable Mailpit. Verify the domain in the **Resend dashboard** first (Domains → Add) and add
+   the MX/SPF/DKIM records it shows. Full details in [`NEWSLETTER.md`](NEWSLETTER.md).
 
 Put the values in `.env`:
 
