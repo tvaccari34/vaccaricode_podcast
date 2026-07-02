@@ -89,7 +89,12 @@ async def complete(
 
     audio_url = storage.public_url(final_key)
     with get_conn() as conn:
-        repo.update_episode_audio(conn, episode_id, audio_url, int(duration), size, status="ready")
+        # Keep an already-published episode live when it is re-narrated; otherwise mark it ready
+        # for review/publish (first narration).
+        target_status = repo.episode_audio_target_status(conn, episode_id)
+        repo.update_episode_audio(
+            conn, episode_id, audio_url, int(duration), size, status=target_status
+        )
         repo.complete_job(conn, job_id, final_key)
         conn.commit()
 

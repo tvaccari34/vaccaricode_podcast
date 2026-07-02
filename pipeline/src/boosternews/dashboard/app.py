@@ -59,8 +59,13 @@ def index(_auth: None = Depends(require_auth)) -> HTMLResponse:
     s = get_settings()
     queue = repo.get_review_queue()
     manual = repo.list_secondary_episodes()
+    episodes = repo.list_primary_episodes()
     html = _env.get_template("index.html").render(
-        queue=queue, reviewer=s.author_name, primary=s.primary_language_code, manual=manual
+        queue=queue,
+        reviewer=s.author_name,
+        primary=s.primary_language_code,
+        manual=manual,
+        episodes=episodes,
     )
     return HTMLResponse(html)
 

@@ -64,6 +64,28 @@ INDEX = """
   </section>
   {% endif %}
 
+  {% if episodes %}
+  <section class="topic">
+    <h2>🎙️ Episodes — edit script &amp; re-narrate</h2>
+    <p class="muted">Auto-narrated {{ primary }} episodes. Edit the script and re-narrate — the home GPU worker regenerates the audio. Published episodes stay live and update in place.</p>
+    {% for ep in episodes %}
+    <div class="channel">
+      <h4>{{ ep.title }} <span class="badge {{ ep.status }}">{{ ep.status }}</span>
+        {% if ep.audio_url %}<span class="badge approved">audio{% if ep.duration %} · {{ ep.duration }}s{% endif %}</span>{% else %}<span class="badge pending_review">no audio yet</span>{% endif %}
+      </h4>
+      {% if ep.audio_url %}<audio controls preload="none" src="{{ ep.audio_url }}"></audio>{% endif %}
+      <details class="renarrate">
+        <summary>✏️ Edit script &amp; re-narrate</summary>
+        <form method="post" action="/episode/{{ ep.id }}/renarrate">
+          <textarea name="script" rows="14">{{ ep.script }}</textarea>
+          <button class="edit" type="submit">Save &amp; re-narrate</button>
+        </form>
+      </details>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   {% if not queue %}
     <p>Nothing to review right now. 🎉 Generate content with <code>generate</code>, then refresh.</p>
   {% endif %}
@@ -96,16 +118,7 @@ INDEX = """
                   <button class="approve" type="submit">Enviar áudio</button>
                 </form>
               {% else %}
-                <p class="muted">audio being produced by the sound-worker — review the script below</p>
-              {% endif %}
-              {% if not manual and L.episode %}
-                <details class="renarrate">
-                  <summary>✏️ Edit script &amp; re-narrate (regenerates the pt-BR audio)</summary>
-                  <form method="post" action="/episode/{{ L.episode.id }}/renarrate">
-                    <textarea name="script" rows="14">{{ L.episode.script }}</textarea>
-                    <button class="edit" type="submit">Save &amp; re-narrate</button>
-                  </form>
-                </details>
+                <p class="muted">audio being produced by the sound-worker — edit the script &amp; re-narrate in the Episodes section above</p>
               {% endif %}
             {% endif %}
             <details><summary>view {{ ch }}</summary><pre>{{ d.body }}</pre></details>
