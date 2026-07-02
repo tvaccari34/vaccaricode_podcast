@@ -11,13 +11,52 @@ implemented in task group 4 (see the ``synthesize`` TODO below).
 from __future__ import annotations
 
 import logging
+import re
 import time
+import unicodedata
 
 import httpx
 
 from .config import WorkerSettings, get_worker_settings
 
 log = logging.getLogger("sound_worker")
+
+
+# ── TTS text normalization ───────────────────────────────────────────────────
+# F5-TTS pronounces stray symbols instead of treating them as pauses, so the LLM
+# script is cleaned before synthesis: quotes/markdown are dropped, dashes and
+# ellipses become sentence punctuation (a pause), and the display copy in the DB
+# is left untouched. Pure + regex-only so it is easy to unit-test.
+_MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")          # [text](url) -> text
+_MD_MARKS = re.compile(r"[*_`#>~|^]")                     # emphasis / heading / code marks
+_BRACKETS = re.compile(r"[\[\]{}<>]")                     # stray brackets
+_DASHES = re.compile(r"\s*[—–]+\s*")                      # em/en dash -> pause
+_ELLIPSIS = re.compile(r"…|\.{3,}")                       # ellipsis -> full stop
+_DBL_QUOTES = {c: None for c in map(ord, "\"“”„‟«»❝❞〝〞＂")}  # drop double-quote family
+_APOSTROPHES = {ord(c): "'" for c in "‘’‚‛"}              # curly apostrophes -> straight
+_PARA_BREAK = re.compile(r"([^.!?:;])\s*\n+")             # unterminated line break -> add stop
+_NEWLINES = re.compile(r"\s*\n+\s*")
+_SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
+_DUP_PUNCT = re.compile(r"([,.;:!?])(?:\s*\1)+")          # ",," / ". ." -> ","
+_MULTISPACE = re.compile(r"[ \t]+")
+
+
+def normalize_for_tts(text: str) -> str:
+    """Strip symbols F5-TTS would read aloud, turning them into natural pauses."""
+    text = unicodedata.normalize("NFKC", text)
+    text = _MD_LINK.sub(r"\1", text)
+    text = text.translate(_DBL_QUOTES).translate(_APOSTROPHES)
+    text = _MD_MARKS.sub("", text)
+    text = _BRACKETS.sub("", text)
+    text = _DASHES.sub(", ", text)
+    text = _ELLIPSIS.sub(".", text)
+    text = text.replace("(", ", ").replace(")", ", ")
+    text = _PARA_BREAK.sub(r"\1. ", text)
+    text = _NEWLINES.sub(" ", text)
+    text = _SPACE_BEFORE_PUNCT.sub(r"\1", text)
+    text = _DUP_PUNCT.sub(r"\1", text)
+    text = _MULTISPACE.sub(" ", text)
+    return text.strip()
 
 
 def _client(settings: WorkerSettings) -> httpx.Client:
@@ -147,6 +186,8 @@ def synthesize(text: str, settings: WorkerSettings) -> bytes:
     """
     import os
     import tempfile
+
+    text = normalize_for_tts(text)
 
     if not settings.reference_sample_path or not os.path.exists(settings.reference_sample_path):
         raise FileNotFoundError(
