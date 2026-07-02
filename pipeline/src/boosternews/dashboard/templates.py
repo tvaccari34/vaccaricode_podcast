@@ -28,6 +28,11 @@ INDEX = """
     input[type=text] { flex: 1; min-width: 12rem; padding: .4rem .5rem; border: 1px solid #8884; border-radius: 6px; background: transparent; color: inherit; }
     button { border: none; border-radius: 6px; padding: .4rem .8rem; cursor: pointer; color: #fff; font-weight: 600; }
     .approve { background: #16a34a; } .edit { background: #d97706; } .reject { background: #dc2626; }
+    textarea { width: 100%; box-sizing: border-box; font: 13px/1.5 ui-monospace, monospace; padding: .5rem; border: 1px solid #8884; border-radius: 6px; background: transparent; color: inherit; resize: vertical; }
+    .renarrate { margin: .5rem 0; }
+    .renarrate form { flex-direction: column; align-items: stretch; }
+    .renarrate summary { cursor: pointer; color: #d97706; font-size: .85em; }
+    .renarrate button { align-self: flex-start; }
     .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid #8884; vertical-align: middle; }
     .pending_review { color: #d97706; } .approved { color: #16a34a; } .rejected { color: #dc2626; }
     .needs_edit { color: #ca8a04; } .published { color: #2563eb; }
@@ -92,6 +97,15 @@ INDEX = """
                 </form>
               {% else %}
                 <p class="muted">audio being produced by the sound-worker — review the script below</p>
+              {% endif %}
+              {% if not manual and L.episode %}
+                <details class="renarrate">
+                  <summary>✏️ Edit script &amp; re-narrate (regenerates the pt-BR audio)</summary>
+                  <form method="post" action="/episode/{{ L.episode.id }}/renarrate">
+                    <textarea name="script" rows="14">{{ L.episode.script }}</textarea>
+                    <button class="edit" type="submit">Save &amp; re-narrate</button>
+                  </form>
+                </details>
               {% endif %}
             {% endif %}
             <details><summary>view {{ ch }}</summary><pre>{{ d.body }}</pre></details>

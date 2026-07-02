@@ -101,6 +101,29 @@ def download_script(episode_id: str, _auth: None = Depends(require_auth)) -> Pla
     )
 
 
+@app.post("/episode/{episode_id}/renarrate")
+def renarrate(
+    episode_id: str,
+    script: str = Form(...),
+    _auth: None = Depends(require_auth),
+) -> RedirectResponse:
+    """Save an edited narration script and queue a fresh auto-narration job (pt-BR sound-worker).
+
+    Clears the episode's old audio and enqueues a new job; the home GPU worker picks it up on its
+    next poll and regenerates the MP3 in the cloned voice.
+    """
+    ep = repo.get_episode(episode_id)
+    if not ep:
+        raise HTTPException(status_code=404, detail="episode not found")
+    if not script.strip():
+        raise HTTPException(status_code=400, detail="script cannot be empty")
+    with get_conn() as conn:
+        job_id = repo.update_script_and_renarrate(conn, episode_id, script)
+        conn.commit()
+    log.info("episode %s script edited; queued narration job %s", episode_id, job_id)
+    return RedirectResponse("/", status_code=303)
+
+
 @app.post("/episode/{episode_id}/audio")
 async def upload_audio(
     episode_id: str,

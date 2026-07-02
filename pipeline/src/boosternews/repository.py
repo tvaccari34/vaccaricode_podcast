@@ -379,17 +379,18 @@ def get_review_queue(limit: int = 50) -> list[dict]:
                 langs.setdefault(lang, {"drafts": {}, "episode": None})
                 langs[lang]["drafts"][channel] = {"id": str(did), "status": status, "body": body}
             cur.execute(
-                "SELECT language, id, status, audio_url, duration_seconds FROM episodes "
+                "SELECT language, id, status, audio_url, duration_seconds, script FROM episodes "
                 "WHERE topic_id = %s",
                 (tid,),
             )
-            for lang, eid, status, audio_url, duration in cur.fetchall():
+            for lang, eid, status, audio_url, duration, script in cur.fetchall():
                 langs.setdefault(lang, {"drafts": {}, "episode": None})
                 langs[lang]["episode"] = {
                     "id": str(eid),
                     "status": status,
                     "audio_url": audio_url,
                     "duration": duration,
+                    "script": script,
                 }
             out.append({"topic_id": str(tid), "title": title, "score": score, "langs": langs})
     return out
@@ -625,6 +626,39 @@ def update_episode_audio(
             "status = %s, updated_at = now() WHERE id = %s",
             (audio_url, duration_seconds, file_size_bytes, status, episode_id),
         )
+
+
+def update_script_and_renarrate(
+    conn: psycopg.Connection, episode_id: str, new_script: str
+) -> str | None:
+    """Replace an episode's narration script, drop its stale audio, and queue a fresh narration job.
+
+    Used by the dashboard's "edit script & re-narrate" action. Any prior jobs for the episode are
+    retired to ``failed`` (the narration_status enum has no 'superseded'), so the queue reflects
+    only the new job. Returns the new job id, or ``None`` if the episode doesn't exist.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT voice_id FROM episodes WHERE id = %s", (episode_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        voice_id = row[0] or "tiago"
+        cur.execute(
+            "UPDATE episodes SET script = %s, audio_url = NULL, duration_seconds = NULL, "
+            "file_size_bytes = NULL, status = 'script_ready', updated_at = now() WHERE id = %s",
+            (new_script, episode_id),
+        )
+        cur.execute(
+            "UPDATE narration_jobs SET status = 'failed', updated_at = now() "
+            "WHERE episode_id = %s AND status IN ('queued', 'claimed', 'completed')",
+            (episode_id,),
+        )
+        cur.execute(
+            "INSERT INTO narration_jobs (episode_id, voice_id, text, status) "
+            "VALUES (%s, %s, %s, 'queued') RETURNING id",
+            (episode_id, voice_id, new_script),
+        )
+        return str(cur.fetchone()[0])
 
 
 def list_narration_jobs(limit: int = 20) -> list[dict]:
