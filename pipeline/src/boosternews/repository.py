@@ -328,6 +328,49 @@ def list_secondary_episodes(limit: int = 50) -> list[dict]:
         ]
 
 
+def list_primary_episodes(limit: int = 50) -> list[dict]:
+    """Auto-narrated (primary-language) episodes for the dashboard's edit-script & re-narrate
+    section — independent of the review queue, so published episodes stay editable."""
+    from .config import get_settings
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT e.id, e.title, e.status, e.audio_url, e.duration_seconds, e.script "
+            "FROM episodes e JOIN topics t ON t.id = e.topic_id "
+            "WHERE e.language = %s ORDER BY t.score DESC, e.updated_at DESC LIMIT %s",
+            (get_settings().primary_language_code, limit),
+        )
+        return [
+            {
+                "id": str(r[0]),
+                "title": r[1],
+                "status": r[2],
+                "audio_url": r[3],
+                "duration": r[4],
+                "script": r[5],
+            }
+            for r in cur.fetchall()
+        ]
+
+
+def episode_audio_target_status(conn: psycopg.Connection, episode_id: str) -> str:
+    """Status an episode should take once its audio is (re)generated.
+
+    Re-narrating an already-published episode must keep it live, so return ``'published'`` when the
+    episode's podcast draft is already published; otherwise ``'ready'`` (first narration, still
+    awaiting review/publish).
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT EXISTS (SELECT 1 FROM drafts d JOIN episodes e "
+            "ON e.topic_id = d.topic_id AND e.language = d.language "
+            "WHERE e.id = %s AND d.channel = 'podcast' AND d.status = 'published')",
+            (episode_id,),
+        )
+        return "published" if cur.fetchone()[0] else "ready"
+
+
 def get_episode(episode_id: str) -> dict | None:
     """Fetch an episode by id (script, language, title, audio) — used by the dashboard."""
     from .db import get_conn
