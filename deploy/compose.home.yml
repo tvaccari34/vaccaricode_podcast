@@ -19,7 +19,10 @@ services:
       WORKER_AUTH_TOKEN: ${WORKER_AUTH_TOKEN}
       WORKER_ID: ${WORKER_ID:-home-4060ti}
       VOICE_ID: ${VOICE_ID:-tiago}
-      REFERENCE_SAMPLE_PATH: /data/voice/reference.wav
+      REFERENCE_SAMPLE_PATH: /data/voice/reference_pt.wav
+      # Exact transcript of the reference clip's first ~12s → F5 skips Whisper auto-transcription
+      # (which had mis-detected the reference as English and mangled pronunciation).
+      F5_REF_TEXT: ${F5_REF_TEXT:-}
     volumes:
       # The private cloned-voice reference sample + model cache stay on the home machine.
       - ./voice:/data/voice:ro

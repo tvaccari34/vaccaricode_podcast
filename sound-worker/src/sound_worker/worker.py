@@ -34,11 +34,26 @@ _DASHES = re.compile(r"\s*[—–]+\s*")                      # em/en dash -> pa
 _ELLIPSIS = re.compile(r"…|\.{3,}")                       # ellipsis -> full stop
 _DBL_QUOTES = {c: None for c in map(ord, "\"“”„‟«»❝❞〝〞＂")}  # drop double-quote family
 _APOSTROPHES = {ord(c): "'" for c in "‘’‚‛"}              # curly apostrophes -> straight
+# A straight quote is a quotation mark (drop it) unless it sits between two letters/digits,
+# where it is a contraction apostrophe (e.g. "Vaccari's") and is kept.
+_QUOTE_APOS = re.compile(r"(?<![0-9A-Za-zÀ-ÿ])'|'(?![0-9A-Za-zÀ-ÿ])")
 _PARA_BREAK = re.compile(r"([^.!?:;])\s*\n+")             # unterminated line break -> add stop
 _NEWLINES = re.compile(r"\s*\n+\s*")
 _SPACE_BEFORE_PUNCT = re.compile(r"\s+([,.;:!?])")
-_DUP_PUNCT = re.compile(r"([,.;:!?])(?:\s*\1)+")          # ",," / ". ." -> ","
+_PUNCT_RUN = re.compile(r"[,.;:!?](?:\s*[,.;:!?])+")      # mixed/dup runs (":." "., " ",,") -> one
 _MULTISPACE = re.compile(r"[ \t]+")
+
+
+def _strongest_punct(match: re.Match) -> str:
+    """Collapse a run of punctuation to its strongest mark (sentence stop > clause > comma)."""
+    run = match.group(0)
+    for stop in ".!?":
+        if stop in run:
+            return stop
+    for clause in ";:":
+        if clause in run:
+            return clause
+    return ","
 
 
 def normalize_for_tts(text: str) -> str:
@@ -46,6 +61,7 @@ def normalize_for_tts(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = _MD_LINK.sub(r"\1", text)
     text = text.translate(_DBL_QUOTES).translate(_APOSTROPHES)
+    text = _QUOTE_APOS.sub("", text)
     text = _MD_MARKS.sub("", text)
     text = _BRACKETS.sub("", text)
     text = _DASHES.sub(", ", text)
@@ -54,7 +70,7 @@ def normalize_for_tts(text: str) -> str:
     text = _PARA_BREAK.sub(r"\1. ", text)
     text = _NEWLINES.sub(" ", text)
     text = _SPACE_BEFORE_PUNCT.sub(r"\1", text)
-    text = _DUP_PUNCT.sub(r"\1", text)
+    text = _PUNCT_RUN.sub(_strongest_punct, text)
     text = _MULTISPACE.sub(" ", text)
     return text.strip()
 
