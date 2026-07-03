@@ -23,6 +23,7 @@
 
   --accent: var(--cyan);          /* links / primary */
   --accent-2: var(--magenta);
+  --code-fg: var(--cyan-soft);    /* inline code text */
   --brand-grad: linear-gradient(100deg, var(--cyan-soft), var(--cyan) 35%, var(--blue) 60%, var(--magenta) 100%);
   --divider-grad: linear-gradient(90deg, transparent, var(--cyan) 12%, #ffffff 50%, var(--orange) 88%, transparent);
   --glow-cyan: 0 0 0.6rem rgba(34, 211, 238, .35);
@@ -44,6 +45,7 @@
   --magenta-soft: #d946ef;
   --orange: #ea580c;
   --orange-deep: #c2410c;
+  --code-fg: #0e7490;             /* darker for AA contrast on the light code bg */
   --brand-grad: linear-gradient(100deg, var(--cyan), var(--blue) 55%, var(--magenta) 100%);
   --divider-grad: linear-gradient(90deg, transparent, var(--cyan) 12%, var(--blue) 50%, var(--orange) 88%, transparent);
   --glow-cyan: none;
@@ -169,7 +171,7 @@ article pre {
   background: var(--bg-2); border: 1px solid var(--border);
   border-radius: 8px; padding: 1rem; overflow: auto;
 }
-article code { background: var(--bg-2); padding: .1rem .3rem; border-radius: 4px; color: var(--cyan-soft); }
+article code { background: var(--bg-2); padding: .1rem .3rem; border-radius: 4px; color: var(--code-fg); }
 article pre code { background: none; padding: 0; color: inherit; }
 article a { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 

@@ -1,8 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
 import PostList from "../components/PostList.astro";
 import EpisodeList from "../components/EpisodeList.astro";
-import { STRINGS, href } from "../lib/i18n.js";
+import { STRINGS } from "../lib/i18n.js";
 import { getPublishedPosts, getPublishedEpisodes } from "../lib/db.js";
 const lang = "pt-BR";
 const t = STRINGS[lang];
@@ -11,16 +12,7 @@ const episodes = await getPublishedEpisodes(lang);
 ---
 
 <Base lang={lang} alt="/en" description="Cobertura automatizada de tendências em desenvolvimento de software, IA e engenharia.">
-  <section class="hero">
-    <img class="hero-mark" src="/logo-mark.png" alt="Vaccari's Code" width="128" height="128" />
-    <h1>{t.heroTitle}</h1>
-    <p class="muted">{t.heroBody} <a href={href(lang, "/about")}>Tiago Vaccari</a>.</p>
-    <div class="tagline">
-      <span>Tech</span><span class="dot c"></span>
-      <span>Programming</span><span class="dot m"></span>
-      <span>AI</span>
-    </div>
-  </section>
+  <Hero lang={lang} />
   <h2>{t.latestPosts}</h2>
   <PostList posts={posts} lang={lang} />
   <h2>{t.episodes}</h2>
