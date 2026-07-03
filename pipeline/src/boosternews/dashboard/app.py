@@ -106,6 +106,28 @@ def download_script(episode_id: str, _auth: None = Depends(require_auth)) -> Pla
     )
 
 
+def _store_episode_audio(episode_id: str, data: bytes) -> None:
+    """Normalize + encode uploaded bytes to MP3, store it, and attach it to the episode.
+
+    Shared by manual audio upload and create-episode. Uses ``episode_audio_target_status`` so
+    re-uploading audio for an already-published episode keeps it published.
+    """
+    storage.ensure_bucket()
+    with tempfile.TemporaryDirectory() as tmp:
+        src = os.path.join(tmp, "upload")
+        out = os.path.join(tmp, "episode.mp3")
+        with open(src, "wb") as fh:
+            fh.write(data)
+        duration, size = audio.assemble(src, out)  # normalize + encode to mp3
+        key = f"podcast/{episode_id}.mp3"
+        storage.upload_file(out, key, content_type="audio/mpeg")
+    audio_url = storage.public_url(key)
+    with get_conn() as conn:
+        target = repo.episode_audio_target_status(conn, episode_id)
+        repo.update_episode_audio(conn, episode_id, audio_url, int(duration), size, status=target)
+        conn.commit()
+
+
 def _lang_fields() -> list[dict]:
     """Form sections for the create pages: primary language, plus secondary if enabled."""
     s = get_settings()
@@ -166,19 +188,33 @@ def create_episode_form(_auth: None = Depends(require_auth)) -> HTMLResponse:
 
 
 @app.post("/create/episode")
-def create_episode(
+async def create_episode(
     primary_title: str = Form(""),
     primary_script: str = Form(""),
     primary_notes: str = Form(""),
     primary_narrate: str = Form(""),
+    primary_audio: UploadFile | None = File(None),
     secondary_title: str = Form(""),
     secondary_script: str = Form(""),
     secondary_notes: str = Form(""),
+    secondary_audio: UploadFile | None = File(None),
     action: str = Form("draft"),
     _auth: None = Depends(require_auth),
 ) -> RedirectResponse:
-    """Create a hand-written podcast episode in one or both languages, optionally queuing pt-BR audio."""
+    """Create a hand-written podcast episode in one or both languages.
+
+    Per language you can upload an MP3 now, queue pt-BR auto-narration, or add audio later. An
+    uploaded file takes precedence over narration.
+    """
     s = get_settings()
+    uploaded = {
+        s.primary_language_code: (await primary_audio.read())
+        if (primary_audio and primary_audio.filename)
+        else b"",
+        s.secondary_language_code: (await secondary_audio.read())
+        if (secondary_audio and secondary_audio.filename)
+        else b"",
+    }
     rows = [
         (s.primary_language_code, primary_title, primary_script, primary_notes, bool(primary_narrate)),
         (s.secondary_language_code, secondary_title, secondary_script, secondary_notes, False),
@@ -191,6 +227,7 @@ def create_episode(
     if not chosen:
         raise HTTPException(status_code=400, detail="provide a title and script for at least one language")
     approve = action == "approve"
+    to_store: list[tuple[str, bytes]] = []
     with get_conn() as conn:
         topic_id = repo.create_manual_topic(conn, chosen[0][1])
         for lang, title, script, notes, narrate in chosen:
@@ -201,10 +238,19 @@ def create_episode(
             )
             if approve:
                 repo.record_review(conn, topic_id=topic_id, channel="podcast", decision="approve", reviewer=s.author_name, language=lang)
-            if narrate and lang == s.primary_language_code:
+            data = uploaded.get(lang) or b""
+            if data:
+                to_store.append((episode_id, data))  # uploaded audio wins over narration
+            elif narrate and lang == s.primary_language_code:
                 repo.enqueue_narration(conn, episode_id, voice or "tiago", script)
         conn.commit()
-    log.info("manual episode created (topic %s, %d language(s), approve=%s)", topic_id, len(chosen), approve)
+    # Store uploaded audio after the episode rows are committed (the helper opens its own tx).
+    for episode_id, data in to_store:
+        _store_episode_audio(episode_id, data)
+    log.info(
+        "manual episode created (topic %s, %d language(s), approve=%s, uploads=%d)",
+        topic_id, len(chosen), approve, len(to_store),
+    )
     return RedirectResponse("/", status_code=303)
 
 
@@ -242,21 +288,7 @@ async def upload_audio(
     if not ep:
         raise HTTPException(status_code=404, detail="episode not found")
     data = await audio_file.read()
-
-    storage.ensure_bucket()
-    with tempfile.TemporaryDirectory() as tmp:
-        src = os.path.join(tmp, "upload")
-        out = os.path.join(tmp, "episode.mp3")
-        with open(src, "wb") as fh:
-            fh.write(data)
-        duration, size = audio.assemble(src, out)  # normalize + encode to mp3
-        key = f"podcast/{episode_id}.mp3"
-        storage.upload_file(out, key, content_type="audio/mpeg")
-
-    audio_url = storage.public_url(key)
-    with get_conn() as conn:
-        repo.update_episode_audio(conn, episode_id, audio_url, int(duration), size, status="ready")
-        conn.commit()
+    _store_episode_audio(episode_id, data)
     return RedirectResponse("/", status_code=303)
 
 

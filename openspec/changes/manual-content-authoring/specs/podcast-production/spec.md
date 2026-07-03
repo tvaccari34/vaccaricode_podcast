@@ -14,6 +14,12 @@ secondary languages (English).
 - **WHEN** the author uploads a recorded MP3 for a manually authored English episode
 - **THEN** the system stores the audio and marks the episode ready, using the existing upload path
 
+#### Scenario: Upload audio while creating an episode
+- **WHEN** the author attaches an MP3 for a language (pt-BR or English) directly on the Create
+  Episode form
+- **THEN** the system stores and normalizes that audio for the new episode at creation time, taking
+  precedence over auto-narration for that language
+
 ### Requirement: Manual episodes reuse episode audio state handling
 A manually authored episode SHALL follow the same audio/status lifecycle as a generated one,
 including re-narration keeping an already-published episode live.

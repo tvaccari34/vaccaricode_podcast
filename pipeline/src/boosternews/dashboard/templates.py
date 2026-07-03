@@ -207,7 +207,7 @@ CREATE_EPISODE = (
   <p><a href="/">← back to review queue</a></p>
   <h1>Create Episode</h1>
   <p class="muted">Write a podcast episode by hand. Fill either or both languages — empty languages are skipped.</p>
-  <form method="post" action="/create/episode">
+  <form method="post" action="/create/episode" enctype="multipart/form-data">
     {% for L in langs %}
     <fieldset>
       <legend>{{ L.label }}</legend>
@@ -217,10 +217,10 @@ CREATE_EPISODE = (
       <textarea name="{{ L.prefix }}_script" rows="14"></textarea>
       <label>Show notes (optional)</label>
       <textarea name="{{ L.prefix }}_notes" rows="4"></textarea>
+      <label>Upload audio (MP3, optional)</label>
+      <input type="file" name="{{ L.prefix }}_audio" accept="audio/*" />
       {% if L.prefix == 'primary' %}
-      <label style="font-weight:400"><input type="checkbox" name="primary_narrate" value="1" /> Queue {{ primary }} narration now (home GPU sound-worker)</label>
-      {% else %}
-      <p class="muted">No auto-narration for this language — after saving, upload the recorded MP3 from the review queue.</p>
+      <label style="font-weight:400"><input type="checkbox" name="primary_narrate" value="1" /> …or queue {{ primary }} narration now (home GPU sound-worker) — ignored if you upload a file above</label>
       {% endif %}
     </fieldset>
     {% endfor %}

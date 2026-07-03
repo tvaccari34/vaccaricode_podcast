@@ -24,6 +24,7 @@
 - [x] 5.1 `GET /create/episode` form: language checkboxes, per-language title + script + show notes; audio choice (pt-BR: enqueue narration; English: upload later).
 - [x] 5.2 `POST /create/episode`: create synthetic topic (reuse if paired with a post) + episode + podcast draft per language; optionally enqueue pt-BR narration.
 - [x] 5.3 Ensure the new episode shows in the existing "Episodes — edit script & re-narrate" and English-audio-upload sections.
+- [x] 5.4 Per-language **MP3 upload** on the Create Episode form (pt-BR + English); uploaded audio is stored at creation and takes precedence over narration. Shared `_store_episode_audio` helper (also used by the existing upload route).
 
 ## 6. Verify end-to-end
 - [x] 6.1 Manual post (pt-BR + English) → appears in review queue → approve → publish → live on `/blog` + `/en/blog` + RSS.
