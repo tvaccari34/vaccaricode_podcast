@@ -91,6 +91,15 @@ def upload_bytes(data: bytes, key: str, *, content_type: str = "application/octe
     return key
 
 
+def delete_object(key: str) -> None:
+    """Delete an object by key; ignore if it does not exist (idempotent cleanup)."""
+    s = get_settings()
+    try:
+        get_client().delete_object(Bucket=s.s3_bucket_audio, Key=key)
+    except ClientError:
+        pass
+
+
 def public_url(key: str) -> str:
     """Build the public URL for an object key (used in the podcast feed enclosure)."""
     s = get_settings()

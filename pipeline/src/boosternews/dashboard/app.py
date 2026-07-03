@@ -289,7 +289,99 @@ async def upload_audio(
         raise HTTPException(status_code=404, detail="episode not found")
     data = await audio_file.read()
     _store_episode_audio(episode_id, data)
+    with get_conn() as conn:
+        repo.request_site_rebuild(conn)
+        conn.commit()
     return RedirectResponse("/", status_code=303)
+
+
+@app.get("/manage", response_class=HTMLResponse)
+def manage(_auth: None = Depends(require_auth)) -> HTMLResponse:
+    """Management view: all posts and episodes (both languages) with lifecycle actions."""
+    return HTMLResponse(
+        _env.get_template("manage.html").render(
+            posts=repo.list_all_posts(),
+            episodes=repo.list_all_episodes(),
+            primary=get_settings().primary_language_code,
+        )
+    )
+
+
+def _rebuild_and_redirect(mutate) -> RedirectResponse:
+    """Run a mutation, queue a site rebuild in the same tx, and return to /manage."""
+    with get_conn() as conn:
+        result = mutate(conn)
+        repo.request_site_rebuild(conn)
+        conn.commit()
+    return result if isinstance(result, RedirectResponse) else RedirectResponse("/manage", status_code=303)
+
+
+@app.post("/manage/rebuild")
+def manage_rebuild(_auth: None = Depends(require_auth)) -> RedirectResponse:
+    with get_conn() as conn:
+        repo.request_site_rebuild(conn)
+        conn.commit()
+    log.info("manual site rebuild requested")
+    return RedirectResponse("/manage", status_code=303)
+
+
+@app.post("/manage/post/{draft_id}/publish")
+def manage_post_publish(draft_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    return _rebuild_and_redirect(lambda conn: repo.publish_item(conn, draft_id))
+
+
+@app.post("/manage/post/{draft_id}/unpublish")
+def manage_post_unpublish(draft_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    return _rebuild_and_redirect(lambda conn: repo.unpublish_draft(conn, draft_id))
+
+
+@app.post("/manage/post/{draft_id}/delete")
+def manage_post_delete(draft_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    return _rebuild_and_redirect(lambda conn: repo.delete_draft(conn, draft_id))
+
+
+@app.get("/manage/post/{draft_id}/edit", response_class=HTMLResponse)
+def manage_post_edit_form(draft_id: str, _auth: None = Depends(require_auth)) -> HTMLResponse:
+    d = repo.get_draft(draft_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="post not found")
+    return HTMLResponse(_env.get_template("edit_post.html").render(d=d))
+
+
+@app.post("/manage/post/{draft_id}/edit")
+def manage_post_edit(
+    draft_id: str,
+    title: str = Form(""),
+    body: str = Form(""),
+    _auth: None = Depends(require_auth),
+) -> RedirectResponse:
+    if not title.strip() or not body.strip():
+        raise HTTPException(status_code=400, detail="title and body are required")
+    return _rebuild_and_redirect(
+        lambda conn: repo.update_draft_content(conn, draft_id, title.strip(), body.strip())
+    )
+
+
+@app.post("/manage/episode/{episode_id}/publish")
+def manage_episode_publish(episode_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    return _rebuild_and_redirect(lambda conn: repo.publish_episode_item(conn, episode_id))
+
+
+@app.post("/manage/episode/{episode_id}/unpublish")
+def manage_episode_unpublish(episode_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    return _rebuild_and_redirect(lambda conn: repo.unpublish_episode(conn, episode_id))
+
+
+@app.post("/manage/episode/{episode_id}/delete")
+def manage_episode_delete(episode_id: str, _auth: None = Depends(require_auth)) -> RedirectResponse:
+    with get_conn() as conn:
+        keys = repo.delete_episode(conn, episode_id)
+        repo.request_site_rebuild(conn)
+        conn.commit()
+    for key in keys:
+        storage.delete_object(key)
+    log.info("deleted episode %s (purged %d audio object(s))", episode_id, len(keys))
+    return RedirectResponse("/manage", status_code=303)
 
 
 @app.get("/health")

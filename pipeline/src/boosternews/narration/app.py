@@ -96,6 +96,7 @@ async def complete(
             conn, episode_id, audio_url, int(duration), size, status=target_status
         )
         repo.complete_job(conn, job_id, final_key)
+        repo.request_site_rebuild(conn)  # reflect new audio on the live site within ~1 min
         conn.commit()
 
     log.info(
