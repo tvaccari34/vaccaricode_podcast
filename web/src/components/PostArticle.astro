@@ -1,10 +1,10 @@
 ---
-import matter from "gray-matter";
+import { safeMatter } from "../lib/frontmatter.js";
 import { marked } from "marked";
 import { STRINGS, href } from "../lib/i18n.js";
 const { post, lang } = Astro.props;
 const t = STRINGS[lang];
-const parsed = matter(post.body);
+const parsed = safeMatter(post.body);
 const html = marked.parse(parsed.content);
 const title = parsed.data.title || post.title;
 const dateStr = parsed.data.date

@@ -1,10 +1,10 @@
 ---
-import matter from "gray-matter";
+import { safeMatter } from "../lib/frontmatter.js";
 import { STRINGS, href } from "../lib/i18n.js";
 const { posts, lang } = Astro.props;
 const t = STRINGS[lang];
 function excerpt(body) {
-  const { content } = matter(body);
+  const { content } = safeMatter(body);
   const p = content.trim().split("\n\n").find((x) => x.trim() && !x.startsWith("#")) || "";
   return p.replace(/[#*`>]/g, "").slice(0, 200);
 }
