@@ -41,6 +41,7 @@ INDEX = """
 <body>
   <h1>Review queue <span class="muted">({{ queue|length }} topic(s) pending) · reviewer: {{ reviewer }}</span></h1>
   <p class="muted">Approve, request edits, or reject each channel. Only approved drafts can be published.</p>
+  <p><a class="createlink" href="/create/post">➕ Create Post</a> &nbsp; <a class="createlink" href="/create/episode">➕ Create Episode</a></p>
 
   {% if manual %}
   <section class="topic">
@@ -144,4 +145,96 @@ INDEX = """
 </html>
 """
 
-TEMPLATES = {"index.html": INDEX}
+_CREATE_STYLE = """
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 15px/1.6 system-ui, sans-serif; max-width: 60rem; margin: 1.5rem auto; padding: 0 1rem; }
+    .muted { color: #888; font-size: .9em; }
+    fieldset { border: 1px solid #8884; border-radius: 10px; margin: 1rem 0; padding: .5rem 1rem 1rem; }
+    legend { font-weight: 600; padding: 0 .4rem; }
+    label { display: block; margin: .6rem 0 .2rem; font-weight: 600; font-size: .9em; }
+    input[type=text], textarea { width: 100%; box-sizing: border-box; padding: .5rem; border: 1px solid #8884; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+    textarea { font: 13px/1.5 ui-monospace, monospace; resize: vertical; }
+    .actions { margin: 1rem 0; display: flex; gap: .5rem; flex-wrap: wrap; }
+    button { border: none; border-radius: 6px; padding: .5rem 1rem; cursor: pointer; color: #fff; font-weight: 600; }
+    .draft { background: #6b7280; } .approve { background: #16a34a; }
+    a { color: inherit; }
+  </style>
+"""
+
+CREATE_POST = (
+    """
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Create Post — boosternews</title>
+"""
+    + _CREATE_STYLE
+    + """
+</head><body>
+  <p><a href="/">← back to review queue</a></p>
+  <h1>Create Post</h1>
+  <p class="muted">Write a blog post (and optional newsletter blurb) by hand. Fill either or both languages — empty languages are skipped. It enters the same review queue as generated content.</p>
+  <form method="post" action="/create/post">
+    {% for L in langs %}
+    <fieldset>
+      <legend>{{ L.label }}</legend>
+      <label>Title</label>
+      <input type="text" name="{{ L.prefix }}_title" />
+      <label>Body (Markdown)</label>
+      <textarea name="{{ L.prefix }}_body" rows="14"></textarea>
+      <label>Newsletter blurb (optional)</label>
+      <textarea name="{{ L.prefix }}_newsletter" rows="4"></textarea>
+    </fieldset>
+    {% endfor %}
+    <div class="actions">
+      <button class="draft" name="action" value="draft" type="submit">Save as draft</button>
+      <button class="approve" name="action" value="approve" type="submit">Save &amp; approve</button>
+    </div>
+  </form>
+</body></html>
+"""
+)
+
+CREATE_EPISODE = (
+    """
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Create Episode — boosternews</title>
+"""
+    + _CREATE_STYLE
+    + """
+</head><body>
+  <p><a href="/">← back to review queue</a></p>
+  <h1>Create Episode</h1>
+  <p class="muted">Write a podcast episode by hand. Fill either or both languages — empty languages are skipped.</p>
+  <form method="post" action="/create/episode" enctype="multipart/form-data">
+    {% for L in langs %}
+    <fieldset>
+      <legend>{{ L.label }}</legend>
+      <label>Title</label>
+      <input type="text" name="{{ L.prefix }}_title" />
+      <label>Script</label>
+      <textarea name="{{ L.prefix }}_script" rows="14"></textarea>
+      <label>Show notes (optional)</label>
+      <textarea name="{{ L.prefix }}_notes" rows="4"></textarea>
+      <label>Upload audio (MP3, optional)</label>
+      <input type="file" name="{{ L.prefix }}_audio" accept="audio/*" />
+      {% if L.prefix == 'primary' %}
+      <label style="font-weight:400"><input type="checkbox" name="primary_narrate" value="1" /> …or queue {{ primary }} narration now (home GPU sound-worker) — ignored if you upload a file above</label>
+      {% endif %}
+    </fieldset>
+    {% endfor %}
+    <div class="actions">
+      <button class="draft" name="action" value="draft" type="submit">Save as draft</button>
+      <button class="approve" name="action" value="approve" type="submit">Save &amp; approve</button>
+    </div>
+  </form>
+</body></html>
+"""
+)
+
+TEMPLATES = {
+    "index.html": INDEX,
+    "create_post.html": CREATE_POST,
+    "create_episode.html": CREATE_EPISODE,
+}

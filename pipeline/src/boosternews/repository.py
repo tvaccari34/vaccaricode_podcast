@@ -128,6 +128,7 @@ def topics_missing_text(limit: int = 25) -> list[tuple[str, str]]:
         cur.execute(
             "SELECT id, urls[1] FROM topics "
             "WHERE (extracted_text IS NULL OR extracted_text = '') AND array_length(urls, 1) >= 1 "
+            "AND origin = 'auto' "
             "ORDER BY score DESC LIMIT %s",
             (limit,),
         )
@@ -199,11 +200,27 @@ def pick_top_new_topic() -> str | None:
     with get_conn(autocommit=True) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT id FROM topics "
-            "WHERE status = 'new' AND extracted_text IS NOT NULL AND extracted_text <> '' "
+            "WHERE status = 'new' AND origin = 'auto' "
+            "AND extracted_text IS NOT NULL AND extracted_text <> '' "
             "ORDER BY score DESC LIMIT 1"
         )
         r = cur.fetchone()
         return str(r[0]) if r else None
+
+
+def create_manual_topic(conn: psycopg.Connection, title: str) -> str:
+    """Create a synthetic topic for hand-authored content.
+
+    Marked ``origin='manual'`` so the automated pipeline (extract/generate/scoring) ignores it,
+    while its drafts/episodes still flow through review/publish/site like any other content.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO topics (title, status, origin) VALUES (%s, 'drafted', 'manual') "
+            "RETURNING id",
+            (title,),
+        )
+        return str(cur.fetchone()[0])
 
 
 def upsert_draft(
