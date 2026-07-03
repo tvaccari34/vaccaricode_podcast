@@ -18,19 +18,27 @@ const toggleHref = alt || otherHome;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
+    <meta name="theme-color" content="#05060a" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
     <link rel="alternate" type="application/rss+xml" title="Blog RSS" href={href(lang, "/rss.xml")} />
     <link rel="alternate" type="application/rss+xml" title="Podcast" href={href(lang, "/podcast/feed.xml")} />
     <script is:inline>
-      const t = localStorage.getItem("theme");
-      if (t) document.documentElement.setAttribute("data-theme", t);
-      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
-        document.documentElement.setAttribute("data-theme", "dark");
+      // Neon look is dark-first: default to dark unless the user chose light.
+      const saved = localStorage.getItem("theme");
+      const theme = saved || "dark";
+      document.documentElement.setAttribute("data-theme", theme);
     </script>
   </head>
   <body>
     <header class="site">
       <div class="wrap">
-        <a class="brand" href={t.base || "/"}>Vaccari's Code Podcast</a>
+        <a class="brand" href={t.base || "/"}>
+          <img src="/logo-mark.png" alt="" width="30" height="30" />
+          <span class="brand-text">Vaccari's <span class="code">Code</span></span>
+        </a>
         <nav>
           <a href={href(lang, "/blog")}>{t.nav.blog}</a>
           <a href={href(lang, "/podcast")}>{t.nav.podcast}</a>
@@ -41,6 +49,7 @@ const toggleHref = alt || otherHome;
         </nav>
       </div>
     </header>
+    <div class="neon-rule"></div>
 
     <main>
       <div class="wrap">
@@ -58,7 +67,7 @@ const toggleHref = alt || otherHome;
 
     <script is:inline>
       document.getElementById("theme-toggle")?.addEventListener("click", () => {
-        const cur = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+        const cur = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
         const next = cur === "dark" ? "light" : "dark";
         document.documentElement.setAttribute("data-theme", next);
         localStorage.setItem("theme", next);

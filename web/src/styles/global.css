@@ -1,87 +1,205 @@
+/* Vaccari's Code — neon look & feel.
+   Palette pulled from the logo: cyan → magenta brain/V mark, orange "Code",
+   glowing divider, circuit traces on near-black. Dark is the primary
+   experience; a light variant keeps the same neon accents for readability. */
 :root {
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #666;
-  --accent: #c2410c; /* warm rust-orange, a nod to the topics */
-  --border: #e5e5e5;
-  --card: #fafafa;
+  /* dark-first (default, no data-theme attribute) */
+  --bg: #05060a;
+  --bg-2: #0a0c14;
+  --fg: #e8ecf4;
+  --muted: #8b93a7;
+  --border: #1b2130;
+  --card: #0c0f18;
+  --card-hover: #10141f;
+
+  /* neon accents */
+  --cyan: #22d3ee;
+  --cyan-soft: #67e8f9;
+  --blue: #3b82f6;
+  --magenta: #d946ef;
+  --magenta-soft: #e879f9;
+  --orange: #fb923c;
+  --orange-deep: #f97316;
+
+  --accent: var(--cyan);          /* links / primary */
+  --accent-2: var(--magenta);
+  --code-fg: var(--cyan-soft);    /* inline code text */
+  --brand-grad: linear-gradient(100deg, var(--cyan-soft), var(--cyan) 35%, var(--blue) 60%, var(--magenta) 100%);
+  --divider-grad: linear-gradient(90deg, transparent, var(--cyan) 12%, #ffffff 50%, var(--orange) 88%, transparent);
+  --glow-cyan: 0 0 0.6rem rgba(34, 211, 238, .35);
+  --glow-magenta: 0 0 0.6rem rgba(217, 70, 239, .35);
   --maxw: 46rem;
 }
-:root[data-theme="dark"] {
-  --bg: #0f1115;
-  --fg: #e8e8e8;
-  --muted: #9aa0a6;
-  --accent: #fb923c;
-  --border: #262a31;
-  --card: #161922;
+:root[data-theme="light"] {
+  --bg: #f7f8fb;
+  --bg-2: #eef1f7;
+  --fg: #14171f;
+  --muted: #5a6172;
+  --border: #dce0ea;
+  --card: #ffffff;
+  --card-hover: #ffffff;
+  --cyan: #0891b2;
+  --cyan-soft: #06b6d4;
+  --blue: #2563eb;
+  --magenta: #c026d3;
+  --magenta-soft: #d946ef;
+  --orange: #ea580c;
+  --orange-deep: #c2410c;
+  --code-fg: #0e7490;             /* darker for AA contrast on the light code bg */
+  --brand-grad: linear-gradient(100deg, var(--cyan), var(--blue) 55%, var(--magenta) 100%);
+  --divider-grad: linear-gradient(90deg, transparent, var(--cyan) 12%, var(--blue) 50%, var(--orange) 88%, transparent);
+  --glow-cyan: none;
+  --glow-magenta: none;
 }
 
 * { box-sizing: border-box; }
-html { color-scheme: light dark; }
+html { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
   font: 16px/1.65 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  /* faint circuit-grid + corner neon washes echoing the logo */
+  background-image:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(34, 211, 238, .10), transparent 60%),
+    radial-gradient(55rem 38rem at 100% 0%, rgba(217, 70, 239, .10), transparent 60%),
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: auto, auto, 2.5rem 2.5rem, 2.5rem 2.5rem;
+  background-position: 0 0, 0 0, -1px -1px, -1px -1px;
+  background-attachment: fixed, fixed, fixed, fixed;
 }
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(8, 145, 178, .06), transparent 60%),
+    radial-gradient(55rem 38rem at 100% 0%, rgba(192, 38, 211, .06), transparent 60%);
+  background-size: auto, auto;
+}
+
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 1.25rem; }
 
+/* ---- header ---- */
 header.site {
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; background: var(--bg); z-index: 10;
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
 }
-header.site .wrap { display: flex; align-items: center; gap: 1rem; height: 56px; }
-header.site .brand { font-weight: 700; color: var(--fg); }
+header.site .wrap { display: flex; align-items: center; gap: 1rem; min-height: 60px; }
+.brand { display: flex; align-items: center; gap: .6rem; font-weight: 800; letter-spacing: .2px; }
+.brand img { width: 30px; height: 30px; filter: drop-shadow(var(--glow-cyan)); }
+.brand .brand-text {
+  background: var(--brand-grad); -webkit-background-clip: text; background-clip: text;
+  color: transparent; font-size: 1.05rem;
+}
+.brand .brand-text .code { color: var(--orange); -webkit-text-fill-color: var(--orange); }
+
 header.site nav { display: flex; gap: 1rem; margin-left: auto; align-items: center; }
-header.site nav a { color: var(--muted); font-size: .95rem; }
-header.site nav a:hover { color: var(--fg); }
+header.site nav a { color: var(--muted); font-size: .95rem; position: relative; }
+header.site nav a:hover { color: var(--fg); text-decoration: none; }
+header.site nav a:not(.langswitch):hover::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 2px;
+  background: var(--brand-grad); border-radius: 2px; box-shadow: var(--glow-cyan);
+}
 .theme-toggle {
   background: none; border: 1px solid var(--border); color: var(--fg);
   border-radius: 6px; padding: .25rem .5rem; cursor: pointer; font-size: .9rem;
 }
+.theme-toggle:hover { border-color: var(--cyan); box-shadow: var(--glow-cyan); }
 header.site nav a.langswitch {
   border: 1px solid var(--border); border-radius: 6px; padding: .2rem .5rem;
-  font-size: .8rem; font-weight: 600; color: var(--fg);
+  font-size: .8rem; font-weight: 700; color: var(--fg);
 }
+header.site nav a.langswitch:hover { border-color: var(--magenta); box-shadow: var(--glow-magenta); }
+
+/* glowing divider under the header, straight from the logo */
+.neon-rule { height: 1px; background: var(--divider-grad); box-shadow: 0 0 12px rgba(34,211,238,.4); }
 
 main { padding: 2.5rem 0 4rem; }
-h1, h2, h3 { line-height: 1.25; }
-.hero h1 { font-size: 2rem; margin: 0 0 .5rem; }
+h1, h2, h3 { line-height: 1.2; }
+h2 { margin-top: 2.5rem; }
 .muted { color: var(--muted); }
 .meta { color: var(--muted); font-size: .9rem; }
 
-.card {
-  border: 1px solid var(--border); background: var(--card);
-  border-radius: 10px; padding: 1rem 1.25rem; margin: 0 0 1rem;
+/* ---- hero ---- */
+.hero { text-align: center; padding: 1.5rem 0 1rem; }
+.hero .hero-mark { width: 128px; height: 128px; filter: drop-shadow(0 0 1.4rem rgba(34,211,238,.35)); }
+.hero h1 {
+  font-size: clamp(1.8rem, 4.5vw, 2.6rem); margin: .75rem 0 .6rem; letter-spacing: -.5px;
+  background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.card h3 { margin: 0 0 .35rem; }
-.card .meta { margin: 0 0 .5rem; }
+.hero p { max-width: 34rem; margin: 0 auto; }
+.tagline {
+  display: inline-flex; gap: .55rem; align-items: center; justify-content: center; flex-wrap: wrap;
+  margin: 1.1rem auto 0; font-size: .8rem; font-weight: 700; letter-spacing: .28em;
+  text-transform: uppercase; color: var(--fg);
+}
+.tagline .dot { width: 7px; height: 7px; border-radius: 50%; }
+.tagline .dot.c { background: var(--cyan); box-shadow: var(--glow-cyan); }
+.tagline .dot.m { background: var(--magenta); box-shadow: var(--glow-magenta); }
+
+/* ---- cards ---- */
+.card {
+  position: relative; border: 1px solid var(--border); background: var(--card);
+  border-radius: 12px; padding: 1rem 1.25rem; margin: 0 0 1rem;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.card::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+  border-radius: 3px; background: var(--brand-grad); opacity: .5; transition: opacity .2s;
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--cyan) 55%, var(--border));
+  box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 8px 30px -12px rgba(34,211,238,.35);
+  background: var(--card-hover);
+}
+.card:hover::before { opacity: 1; }
+.card h3 { margin: 0 0 .35rem; padding-left: .4rem; }
+.card .meta { margin: 0 0 .5rem; padding-left: .4rem; }
+.card p:not(.meta) { padding-left: .4rem; }
 
 ul.bare { list-style: none; padding: 0; }
 
 article :is(h2, h3) { margin-top: 2rem; }
+article :is(h1,h2,h3) { color: var(--fg); }
 article pre {
-  background: var(--card); border: 1px solid var(--border);
+  background: var(--bg-2); border: 1px solid var(--border);
   border-radius: 8px; padding: 1rem; overflow: auto;
 }
-article code { background: var(--card); padding: .1rem .3rem; border-radius: 4px; }
-article pre code { background: none; padding: 0; }
+article code { background: var(--bg-2); padding: .1rem .3rem; border-radius: 4px; color: var(--code-fg); }
+article pre code { background: none; padding: 0; color: inherit; }
+article a { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 
+/* ---- footer ---- */
 footer.site {
   border-top: 1px solid var(--border); color: var(--muted);
   font-size: .9rem; padding: 1.5rem 0; margin-top: 3rem;
 }
+footer.site a { color: var(--muted); }
+footer.site a:hover { color: var(--cyan); }
 
+/* ---- subscribe form ---- */
 form.subscribe { display: flex; flex-direction: column; gap: .75rem; max-width: 28rem; }
 form.subscribe input[type="email"], form.subscribe input[type="text"] {
   padding: .6rem .75rem; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg); color: var(--fg);
+  background: var(--bg-2); color: var(--fg);
 }
+form.subscribe input:focus { outline: none; border-color: var(--cyan); box-shadow: var(--glow-cyan); }
 form.subscribe button {
-  padding: .6rem 1rem; border: none; border-radius: 8px;
-  background: var(--accent); color: #fff; font-weight: 600; cursor: pointer;
+  padding: .65rem 1rem; border: none; border-radius: 8px;
+  background: linear-gradient(100deg, var(--cyan), var(--blue) 55%, var(--magenta));
+  color: #fff; font-weight: 700; cursor: pointer; letter-spacing: .3px;
+  box-shadow: 0 6px 24px -10px rgba(34,211,238,.6);
 }
-.badge { display:inline-block; font-size:.75rem; color: var(--muted); border:1px solid var(--border); border-radius: 999px; padding:.1rem .5rem; }
+form.subscribe button:hover { filter: brightness(1.08); }
+
+.badge {
+  display: inline-block; font-size: .75rem; color: var(--cyan-soft);
+  border: 1px solid color-mix(in srgb, var(--cyan) 40%, var(--border));
+  border-radius: 999px; padding: .1rem .5rem;
+}
