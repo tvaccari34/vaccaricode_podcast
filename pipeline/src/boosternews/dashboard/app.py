@@ -106,6 +106,108 @@ def download_script(episode_id: str, _auth: None = Depends(require_auth)) -> Pla
     )
 
 
+def _lang_fields() -> list[dict]:
+    """Form sections for the create pages: primary language, plus secondary if enabled."""
+    s = get_settings()
+    fields = [{"label": f"Primary ({s.primary_language_code})", "prefix": "primary"}]
+    if s.secondary_language_code:
+        fields.append({"label": f"Secondary ({s.secondary_language_code})", "prefix": "secondary"})
+    return fields
+
+
+@app.get("/create/post", response_class=HTMLResponse)
+def create_post_form(_auth: None = Depends(require_auth)) -> HTMLResponse:
+    return HTMLResponse(_env.get_template("create_post.html").render(langs=_lang_fields()))
+
+
+@app.post("/create/post")
+def create_post(
+    primary_title: str = Form(""),
+    primary_body: str = Form(""),
+    primary_newsletter: str = Form(""),
+    secondary_title: str = Form(""),
+    secondary_body: str = Form(""),
+    secondary_newsletter: str = Form(""),
+    action: str = Form("draft"),
+    _auth: None = Depends(require_auth),
+) -> RedirectResponse:
+    """Create a hand-written blog post (and optional newsletter blurb) in one or both languages."""
+    s = get_settings()
+    rows = [
+        (s.primary_language_code, primary_title, primary_body, primary_newsletter),
+        (s.secondary_language_code, secondary_title, secondary_body, secondary_newsletter),
+    ]
+    chosen = [(lang, t.strip(), b.strip(), n.strip()) for lang, t, b, n in rows if lang and t.strip() and b.strip()]
+    if not chosen:
+        raise HTTPException(status_code=400, detail="provide a title and body for at least one language")
+    approve = action == "approve"
+    with get_conn() as conn:
+        topic_id = repo.create_manual_topic(conn, chosen[0][1])
+        for lang, title, body, newsletter in chosen:
+            repo.upsert_draft(conn, topic_id, "blog", title, body, {}, language=lang)
+            if newsletter:
+                repo.upsert_draft(conn, topic_id, "newsletter", title, newsletter, {}, language=lang)
+            if approve:
+                repo.record_review(conn, topic_id=topic_id, channel="blog", decision="approve", reviewer=s.author_name, language=lang)
+                if newsletter:
+                    repo.record_review(conn, topic_id=topic_id, channel="newsletter", decision="approve", reviewer=s.author_name, language=lang)
+        conn.commit()
+    log.info("manual post created (topic %s, %d language(s), approve=%s)", topic_id, len(chosen), approve)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.get("/create/episode", response_class=HTMLResponse)
+def create_episode_form(_auth: None = Depends(require_auth)) -> HTMLResponse:
+    return HTMLResponse(
+        _env.get_template("create_episode.html").render(
+            langs=_lang_fields(), primary=get_settings().primary_language_code
+        )
+    )
+
+
+@app.post("/create/episode")
+def create_episode(
+    primary_title: str = Form(""),
+    primary_script: str = Form(""),
+    primary_notes: str = Form(""),
+    primary_narrate: str = Form(""),
+    secondary_title: str = Form(""),
+    secondary_script: str = Form(""),
+    secondary_notes: str = Form(""),
+    action: str = Form("draft"),
+    _auth: None = Depends(require_auth),
+) -> RedirectResponse:
+    """Create a hand-written podcast episode in one or both languages, optionally queuing pt-BR audio."""
+    s = get_settings()
+    rows = [
+        (s.primary_language_code, primary_title, primary_script, primary_notes, bool(primary_narrate)),
+        (s.secondary_language_code, secondary_title, secondary_script, secondary_notes, False),
+    ]
+    chosen = [
+        (lang, t.strip(), sc.strip(), n.strip(), narr)
+        for lang, t, sc, n, narr in rows
+        if lang and t.strip() and sc.strip()
+    ]
+    if not chosen:
+        raise HTTPException(status_code=400, detail="provide a title and script for at least one language")
+    approve = action == "approve"
+    with get_conn() as conn:
+        topic_id = repo.create_manual_topic(conn, chosen[0][1])
+        for lang, title, script, notes, narrate in chosen:
+            draft_id = repo.upsert_draft(conn, topic_id, "podcast", title, script, {}, language=lang)
+            voice = s.voice_id if lang == s.primary_language_code else None
+            episode_id = repo.upsert_episode(
+                conn, topic_id, draft_id, title, script, notes, language=lang, voice_id=voice
+            )
+            if approve:
+                repo.record_review(conn, topic_id=topic_id, channel="podcast", decision="approve", reviewer=s.author_name, language=lang)
+            if narrate and lang == s.primary_language_code:
+                repo.enqueue_narration(conn, episode_id, voice or "tiago", script)
+        conn.commit()
+    log.info("manual episode created (topic %s, %d language(s), approve=%s)", topic_id, len(chosen), approve)
+    return RedirectResponse("/", status_code=303)
+
+
 @app.post("/episode/{episode_id}/renarrate")
 def renarrate(
     episode_id: str,

@@ -75,3 +75,12 @@ publish → live on the site + newsletter delivered**, on a schedule.
 | Infra, trend discovery, content generation (Gemini), review dashboard, Astro site, newsletter (Listmonk), publishing, scheduler | Podcast audio (sound-worker, needs home GPU); VPS deploy with DNS/TLS |
 
 Progress is tracked in `openspec/changes/bootstrap-content-platform/tasks.md`.
+
+## Manual authoring
+
+Besides the automated trend→AI pipeline, you can hand-write content from the review dashboard:
+**Create Post** (blog + optional newsletter) and **Create Episode** (script + show notes), in
+pt-BR and/or English. Manual entries create a synthetic `origin='manual'` topic and flow through
+the same review → approve → publish → site/feed path; the automated pipeline skips manual topics,
+so both modes coexist. pt-BR episodes can be auto-narrated by the home GPU worker; English audio is
+uploaded manually. See `openspec/changes/manual-content-authoring/`.
