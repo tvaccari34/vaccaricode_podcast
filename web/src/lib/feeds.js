@@ -1,5 +1,5 @@
 // Shared RSS / iTunes podcast feed builders, per language.
-import matter from "gray-matter";
+import { safeMatter } from "./frontmatter.js";
 import { getPublishedEpisodes, getPublishedPosts } from "./db.js";
 import { STRINGS } from "./i18n.js";
 
@@ -17,7 +17,7 @@ export async function blogRss(lang, siteUrl) {
   const items = posts
     .map((p) => {
       const link = `${base}/blog/${p.topic_id}`;
-      const { content } = matter(p.body);
+      const { content } = safeMatter(p.body);
       const desc = content.replace(/[#*`>]/g, "").trim().slice(0, 300);
       return `<item><title>${esc(p.title)}</title><link>${link}</link><guid>${link}</guid><pubDate>${new Date(p.updated_at).toUTCString()}</pubDate><description>${esc(desc)}</description></item>`;
     })
