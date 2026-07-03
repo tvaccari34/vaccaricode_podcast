@@ -770,3 +770,183 @@ def list_publications(limit: int = 20) -> list[dict]:
             {"channel": r[0], "url": r[1], "external_id": r[2], "published_at": r[3]}
             for r in cur.fetchall()
         ]
+
+
+# ── Content management (dashboard) ─────────────────────────────────────────
+
+
+def list_all_posts() -> list[dict]:
+    """Every blog post (any status), both languages, for the management view."""
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT d.id, d.topic_id, d.language, d.title, d.status, d.updated_at, t.origin "
+            "FROM drafts d JOIN topics t ON t.id = d.topic_id "
+            "WHERE d.channel = 'blog' ORDER BY d.language, d.updated_at DESC"
+        )
+        return [
+            {
+                "id": str(r[0]),
+                "topic_id": str(r[1]),
+                "language": r[2],
+                "title": r[3],
+                "status": r[4],
+                "updated_at": r[5],
+                "origin": r[6],
+            }
+            for r in cur.fetchall()
+        ]
+
+
+def list_all_episodes() -> list[dict]:
+    """Every episode (any status), both languages, for the management view."""
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT e.id, e.language, e.title, e.status, e.audio_url, e.duration_seconds, t.origin "
+            "FROM episodes e JOIN topics t ON t.id = e.topic_id "
+            "ORDER BY e.language, e.updated_at DESC"
+        )
+        return [
+            {
+                "id": str(r[0]),
+                "language": r[1],
+                "title": r[2],
+                "status": r[3],
+                "audio_url": r[4],
+                "duration": r[5],
+                "origin": r[6],
+            }
+            for r in cur.fetchall()
+        ]
+
+
+def publish_item(conn: psycopg.Connection, draft_id: str) -> None:
+    """Publish one blog/newsletter draft directly (explicit human action, no approval gate)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE drafts SET status = 'published', updated_at = now() WHERE id = %s "
+            "RETURNING topic_id, channel, language",
+            (draft_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            topic_id, channel, language = row
+            cur.execute(
+                "INSERT INTO publications (topic_id, channel, ref_id, language) "
+                "VALUES (%s, %s, %s, %s)",
+                (topic_id, channel, draft_id, language),
+            )
+
+
+def publish_episode_item(conn: psycopg.Connection, episode_id: str) -> None:
+    """Publish one episode (and its podcast draft) directly."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE episodes SET status = 'published', updated_at = now() WHERE id = %s "
+            "RETURNING topic_id, language",
+            (episode_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        topic_id, language = row
+        cur.execute(
+            "UPDATE drafts SET status = 'published', updated_at = now() "
+            "WHERE topic_id = %s AND channel = 'podcast' AND language = %s",
+            (topic_id, language),
+        )
+        cur.execute(
+            "INSERT INTO publications (topic_id, channel, ref_id, language) "
+            "VALUES (%s, 'podcast', %s, %s)",
+            (topic_id, episode_id, language),
+        )
+
+
+def unpublish_draft(conn: psycopg.Connection, draft_id: str) -> None:
+    """Take a published post/blurb off the site (kept as an approved, editable draft)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE drafts SET status = 'approved', updated_at = now() "
+            "WHERE id = %s AND status = 'published'",
+            (draft_id,),
+        )
+
+
+def unpublish_episode(conn: psycopg.Connection, episode_id: str) -> None:
+    """Take a published episode off the feed/site (keeps its audio; status back to 'ready')."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE episodes SET status = 'ready', updated_at = now() "
+            "WHERE id = %s AND status = 'published'",
+            (episode_id,),
+        )
+        cur.execute(
+            "UPDATE drafts d SET status = 'approved', updated_at = now() "
+            "FROM episodes e WHERE e.id = %s AND d.topic_id = e.topic_id "
+            "AND d.channel = 'podcast' AND d.language = e.language AND d.status = 'published'",
+            (episode_id,),
+        )
+
+
+def delete_draft(conn: psycopg.Connection, draft_id: str) -> None:
+    """Delete a single draft (e.g. one blog post); leaves the topic and sibling content intact."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM drafts WHERE id = %s", (draft_id,))
+
+
+def delete_episode(conn: psycopg.Connection, episode_id: str) -> list[str]:
+    """Delete an episode and its paired podcast draft (narration_jobs cascade).
+
+    Returns the object-storage keys of its audio so the caller can purge them.
+    """
+    keys = [f"podcast/{episode_id}.mp3", f"narration/{episode_id}/raw.wav"]
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM drafts d USING episodes e "
+            "WHERE e.id = %s AND d.topic_id = e.topic_id "
+            "AND d.channel = 'podcast' AND d.language = e.language",
+            (episode_id,),
+        )
+        cur.execute("DELETE FROM episodes WHERE id = %s", (episode_id,))
+    return keys
+
+
+def request_site_rebuild(conn: psycopg.Connection) -> None:
+    """Queue an on-demand static-site rebuild (consumed by the host watcher within ~1 min)."""
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO site_build_requests DEFAULT VALUES")
+
+
+def get_draft(draft_id: str) -> dict | None:
+    """Fetch one draft's editable fields for the management edit form."""
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, topic_id, language, channel, title, body, status FROM drafts WHERE id = %s",
+            (draft_id,),
+        )
+        r = cur.fetchone()
+        if not r:
+            return None
+        return {
+            "id": str(r[0]),
+            "topic_id": str(r[1]),
+            "language": r[2],
+            "channel": r[3],
+            "title": r[4],
+            "body": r[5],
+            "status": r[6],
+        }
+
+
+def update_draft_content(conn: psycopg.Connection, draft_id: str, title: str, body: str) -> None:
+    """Edit a draft's title/body in place, preserving its status (a published post stays published)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE drafts SET title = %s, body = %s, updated_at = now() WHERE id = %s",
+            (title, body, draft_id),
+        )

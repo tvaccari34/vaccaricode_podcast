@@ -84,3 +84,13 @@ pt-BR and/or English. Manual entries create a synthetic `origin='manual'` topic 
 the same review → approve → publish → site/feed path; the automated pipeline skips manual topics,
 so both modes coexist. pt-BR episodes can be auto-narrated by the home GPU worker; English audio is
 uploaded manually. See `openspec/changes/manual-content-authoring/`.
+
+## Managing content
+
+The dashboard's **Manage content** view (`/manage`) lists all blog posts and podcast episodes
+(pt-BR + English) — automated or manual, published or not — with per-item actions: **publish,
+unpublish, edit, replace/regenerate audio, and delete** (deleting an episode also purges its
+stored audio). Changes are DB-only and appear on the live site within ~1 minute: each action (and
+a **Rebuild now** button) queues a row in `site_build_requests`, which a 1-minute host watcher
+(`deploy/rebuild-watch.sh`) consumes to rebuild the static site. See
+`openspec/changes/content-management/`.

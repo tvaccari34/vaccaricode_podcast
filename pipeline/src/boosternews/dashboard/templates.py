@@ -41,7 +41,7 @@ INDEX = """
 <body>
   <h1>Review queue <span class="muted">({{ queue|length }} topic(s) pending) · reviewer: {{ reviewer }}</span></h1>
   <p class="muted">Approve, request edits, or reject each channel. Only approved drafts can be published.</p>
-  <p><a class="createlink" href="/create/post">➕ Create Post</a> &nbsp; <a class="createlink" href="/create/episode">➕ Create Episode</a></p>
+  <p><a class="createlink" href="/create/post">➕ Create Post</a> &nbsp; <a class="createlink" href="/create/episode">➕ Create Episode</a> &nbsp; <a class="createlink" href="/manage">🗂️ Manage content</a></p>
 
   {% if manual %}
   <section class="topic">
@@ -233,8 +233,111 @@ CREATE_EPISODE = (
 """
 )
 
+MANAGE = """
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manage content — boosternews</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; max-width: 70rem; margin: 1.5rem auto; padding: 0 1rem; }
+  .muted { color: #888; font-size: .9em; }
+  h2 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #8883; vertical-align: middle; }
+  th { font-size: .8em; text-transform: uppercase; color: #888; }
+  .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid #8884; }
+  .published { color: #2563eb; } .approved { color: #16a34a; } .pending_review { color: #d97706; }
+  .ready { color: #16a34a; } .script_ready { color: #d97706; } .needs_edit { color: #ca8a04; } .rejected { color: #dc2626; }
+  .actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+  .actions form { display: inline; margin: 0; }
+  .actions input[type=file] { width: 9rem; }
+  a { color: inherit; }
+  button { border: none; border-radius: 6px; padding: .3rem .6rem; cursor: pointer; color: #fff; font-weight: 600; font-size: .82em; }
+  .go { background: #16a34a; } .warn { background: #d97706; } .danger { background: #dc2626; } .rebuild { background: #2563eb; padding: .45rem .9rem; }
+</style></head><body>
+  <p><a href="/">← back to review queue</a></p>
+  <h1>Manage content</h1>
+  <form method="post" action="/manage/rebuild"><button class="rebuild">🔄 Rebuild site now</button></form>
+  <p class="muted">Publish, unpublish, edit, replace audio, or delete. Changes appear on the live site within ~1 minute (a rebuild is queued automatically). Deleting is permanent.</p>
+
+  <h2>Posts <span class="muted">({{ posts|length }})</span></h2>
+  <table>
+    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Actions</th></tr>
+    {% for p in posts %}
+    <tr>
+      <td>{{ p.language }}</td>
+      <td>{{ p.title or '(untitled)' }} {% if p.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
+      <td><span class="badge {{ p.status }}">{{ p.status }}</span></td>
+      <td class="actions">
+        <a href="/manage/post/{{ p.id }}/edit">edit</a>
+        {% if p.status == 'published' %}
+        <form method="post" action="/manage/post/{{ p.id }}/unpublish" onsubmit="return confirm('Unpublish this post?')"><button class="warn">unpublish</button></form>
+        {% else %}
+        <form method="post" action="/manage/post/{{ p.id }}/publish"><button class="go">publish</button></form>
+        {% endif %}
+        <form method="post" action="/manage/post/{{ p.id }}/delete" onsubmit="return confirm('Delete this post permanently?')"><button class="danger">delete</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if not posts %}<tr><td colspan="4" class="muted">No posts yet.</td></tr>{% endif %}
+  </table>
+
+  <h2>Episodes <span class="muted">({{ episodes|length }})</span></h2>
+  <table>
+    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Audio</th><th>Actions</th></tr>
+    {% for e in episodes %}
+    <tr>
+      <td>{{ e.language }}</td>
+      <td>{{ e.title }} {% if e.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
+      <td><span class="badge {{ e.status }}">{{ e.status }}</span></td>
+      <td>{% if e.audio_url %}<a href="{{ e.audio_url }}">▶{% if e.duration %} {{ e.duration }}s{% endif %}</a>{% else %}—{% endif %}</td>
+      <td class="actions">
+        {% if e.status == 'published' %}
+        <form method="post" action="/manage/episode/{{ e.id }}/unpublish" onsubmit="return confirm('Unpublish this episode?')"><button class="warn">unpublish</button></form>
+        {% else %}
+        <form method="post" action="/manage/episode/{{ e.id }}/publish"><button class="go">publish</button></form>
+        {% endif %}
+        <form method="post" action="/episode/{{ e.id }}/audio" enctype="multipart/form-data"><input type="file" name="audio" accept="audio/*" required /><button class="go">upload audio</button></form>
+        <form method="post" action="/manage/episode/{{ e.id }}/delete" onsubmit="return confirm('Delete this episode and its audio permanently?')"><button class="danger">delete</button></form>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if not episodes %}<tr><td colspan="5" class="muted">No episodes yet.</td></tr>{% endif %}
+  </table>
+  <p class="muted">To edit an episode's script or re-narrate the {{ primary }} audio, use the “Episodes — edit script &amp; re-narrate” section on the <a href="/">review queue page</a>.</p>
+</body></html>
+"""
+
+EDIT_POST = (
+    """
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edit post — boosternews</title>
+"""
+    + _CREATE_STYLE
+    + """
+</head><body>
+  <p><a href="/manage">← back to manage</a></p>
+  <h1>Edit post</h1>
+  <p class="muted">{{ d.language }} · {{ d.channel }} · status: {{ d.status }}</p>
+  <form method="post" action="/manage/post/{{ d.id }}/edit">
+    <label>Title</label>
+    <input type="text" name="title" value="{{ d.title or '' }}" />
+    <label>Body (Markdown)</label>
+    <textarea name="body" rows="20">{{ d.body }}</textarea>
+    <div class="actions">
+      <button class="approve" type="submit">Save</button>
+      <a href="/manage" style="align-self:center">cancel</a>
+    </div>
+  </form>
+</body></html>
+"""
+)
+
 TEMPLATES = {
     "index.html": INDEX,
     "create_post.html": CREATE_POST,
     "create_episode.html": CREATE_EPISODE,
+    "manage.html": MANAGE,
+    "edit_post.html": EDIT_POST,
 }
