@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 
-from . import listmonk
 from . import repository as repo
 from .config import get_settings
 from .db import get_conn
@@ -36,20 +35,9 @@ def publish_topic(topic_id: str) -> dict[str, str]:
 
     approved = [d for d in drafts if d["status"] == "approved"]
 
-    # Newsletters → Listmonk campaigns (HTTP, best-effort) before the DB transaction.
-    campaigns: dict[str, int | None] = {}
-    for d in approved:
-        if d["channel"] == "newsletter":
-            try:
-                campaigns[d["language"]] = listmonk.create_campaign(
-                    name=f"{d['title']} [{d['language']}]",
-                    subject=d["title"],
-                    body=d["body"],
-                    list_id=listmonk.list_id_for(d["language"]),
-                )
-            except Exception as exc:  # noqa: BLE001 — don't let Listmonk block publishing
-                log.warning("Listmonk campaign failed (%s): %s", d["language"], exc)
-                campaigns[d["language"]] = None
+    # Newsletters are NOT emailed per post — the weekly digest (boosternews.digest) aggregates the
+    # last 7 days of posts into one campaign per language. Publishing just releases the blurb so the
+    # digest can pick it up.
 
     summary: dict[str, str] = {}
     with get_conn() as conn:
@@ -69,17 +57,11 @@ def publish_topic(topic_id: str) -> dict[str, str]:
                 )
                 summary[key] = "published"
             elif d["channel"] == "newsletter":
-                cid = campaigns.get(d["language"])
+                # No per-post campaign; the weekly digest emails subscribers.
                 repo.record_publication(
-                    conn,
-                    topic_id,
-                    "newsletter",
-                    d["id"],
-                    None,
-                    str(cid) if cid else None,
-                    d["language"],
+                    conn, topic_id, "newsletter", d["id"], None, None, d["language"]
                 )
-                summary[key] = f"published (campaign #{cid})" if cid else "published (no Listmonk)"
+                summary[key] = "published (weekly digest)"
             else:  # blog
                 url = f"{settings.public_site_url.rstrip('/')}{prefix}/blog/{topic_id}"
                 repo.record_publication(conn, topic_id, "blog", d["id"], url, None, d["language"])

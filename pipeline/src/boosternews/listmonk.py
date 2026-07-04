@@ -66,3 +66,19 @@ def create_campaign(
     )
     resp.raise_for_status()
     return resp.json().get("data", {}).get("id")
+
+
+def start_campaign(campaign_id: int | None) -> bool:
+    """Start (send) a draft campaign via PUT /api/campaigns/{id}/status. Best-effort."""
+    s = get_settings()
+    if not (s.listmonk_api_user and s.listmonk_api_token and campaign_id):
+        return False
+    headers = {"Authorization": f"token {s.listmonk_api_user}:{s.listmonk_api_token}"}
+    resp = httpx.put(
+        f"{s.listmonk_api_url.rstrip('/')}/api/campaigns/{campaign_id}/status",
+        json={"status": "running"},
+        headers=headers,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return True

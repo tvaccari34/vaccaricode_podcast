@@ -950,3 +950,68 @@ def update_draft_content(conn: psycopg.Connection, draft_id: str, title: str, bo
             "UPDATE drafts SET title = %s, body = %s, updated_at = now() WHERE id = %s",
             (title, body, draft_id),
         )
+
+
+# ── Weekly newsletter digest ───────────────────────────────────────────────
+
+
+def last_digest_end(language: str):
+    """The end of the most recent digest window for a language (None if none yet)."""
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT max(window_end) FROM newsletter_digests WHERE language = %s", (language,)
+        )
+        return cur.fetchone()[0]
+
+
+def posts_for_digest(language: str, since) -> list[dict]:
+    """Currently-published blog posts for a language whose blog was published after ``since``.
+
+    One row per post (latest publication), with its title, newsletter blurb, public URL, and time.
+    """
+    from .db import get_conn
+
+    with get_conn(autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT DISTINCT ON (p.topic_id) p.topic_id, p.published_at, p.url, "
+            "       bd.title, nd.body "
+            "FROM publications p "
+            "JOIN drafts bd ON bd.topic_id = p.topic_id AND bd.channel = 'blog' "
+            "               AND bd.language = p.language AND bd.status = 'published' "
+            "LEFT JOIN drafts nd ON nd.topic_id = p.topic_id AND nd.channel = 'newsletter' "
+            "               AND nd.language = p.language "
+            "WHERE p.channel = 'blog' AND p.language = %s AND p.published_at > %s "
+            "ORDER BY p.topic_id, p.published_at DESC",
+            (language, since),
+        )
+        rows = [
+            {
+                "topic_id": str(r[0]),
+                "published_at": r[1],
+                "url": r[2],
+                "title": r[3],
+                "blurb": r[4] or "",
+            }
+            for r in cur.fetchall()
+        ]
+    rows.sort(key=lambda x: x["published_at"])
+    return rows
+
+
+def record_digest(
+    conn: psycopg.Connection,
+    language: str,
+    campaign_id: int | None,
+    item_count: int,
+    window_start,
+    window_end,
+) -> None:
+    """Record a sent/created digest so its window is consumed and auditable."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO newsletter_digests (language, campaign_id, item_count, window_start, "
+            "window_end) VALUES (%s, %s, %s, %s, %s)",
+            (language, campaign_id, item_count, window_start, window_end),
+        )
