@@ -191,6 +191,16 @@ def cmd_narration_status(args) -> int:
     return 0
 
 
+def cmd_digest(args) -> int:
+    from .digest import run_digest
+
+    summary = run_digest()
+    print("Weekly newsletter digest:")
+    for lang, msg in summary.items():
+        print(f"  {lang}: {msg}")
+    return 0
+
+
 def cmd_list_topics(args) -> int:
     from .repository import list_topics
 
@@ -268,6 +278,10 @@ def build_parser() -> argparse.ArgumentParser:
     pn = sub.add_parser("narration-status", help="show the narration job queue")
     pn.add_argument("--limit", type=int, default=20)
     pn.set_defaults(func=cmd_narration_status)
+
+    sub.add_parser(
+        "digest", help="create the weekly newsletter digest campaign(s)"
+    ).set_defaults(func=cmd_digest)
 
     return p
 

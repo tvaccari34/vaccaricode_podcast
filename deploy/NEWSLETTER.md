@@ -59,10 +59,12 @@ are generated per-domain). They are, in shape:
 
 Wait for Resend to show the domain as **Verified** before sending.
 
-## Campaign sending (pipeline → Listmonk API)
+## Campaign sending — weekly digest (pipeline → Listmonk API)
 
-Publishing creates a Listmonk **campaign** from an approved newsletter draft
-(`boosternews.listmonk.create_campaign`). It needs an API user token:
+Subscribers get **one weekly digest**, not one email per post. Publishing a post does **not** create
+a campaign; instead the weekly digest (`boosternews.digest`) aggregates the posts published in the
+last 7 days into **one Listmonk campaign per language** (a "this week" intro + a section per post
+with its blurb and a link). It needs an API user token:
 
 1. Listmonk → **Admin → Users → New** → type **API** → assign a role with campaign + list
    permissions → copy the generated **token**.
@@ -70,10 +72,20 @@ Publishing creates a Listmonk **campaign** from an approved newsletter draft
    ```
    LISTMONK_API_USER=<api username>
    LISTMONK_API_TOKEN=<token>
-   LISTMONK_LIST_ID=2
+   LISTMONK_LIST_ID=<pt id>
+   LISTMONK_LIST_ID_EN=<en id>
    ```
-3. Restart the pipeline. `publish` will now create campaigns; start/send them from the Listmonk
-   UI (or enable auto-start later).
+3. The digest runs weekly via cron (`deploy/weekly-digest.sh`, Mondays by default) — or on demand:
+   ```
+   docker … run --rm pipeline python -m boosternews digest   # (or deploy/weekly-digest.sh)
+   ```
+
+**Draft vs. auto-send:** by default the digest is created as a **draft** — review it in the Listmonk
+UI and click send. To send automatically, set `NEWSLETTER_DIGEST_AUTOSEND=true` in `.env`. Subjects
+and the intro line are configurable (`NEWSLETTER_DIGEST_SUBJECT[_EN]`, `NEWSLETTER_DIGEST_INTRO[_EN]`).
+
+Idempotent: each digest covers posts published since the previous digest (bounded to 7 days), so
+posts are never included twice and a week with no new posts sends nothing.
 
 > Note: API tokens are generated and verified internally by Listmonk and can't be seeded via SQL,
 > so this is a one-time manual step.

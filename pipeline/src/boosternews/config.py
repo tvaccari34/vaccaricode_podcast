@@ -68,6 +68,17 @@ class Settings(BaseSettings):
     listmonk_api_token: str = ""
     listmonk_list_id: int = 0  # primary-language (pt-BR) list
     listmonk_list_id_en: int = 0  # secondary-language (English) list
+    # Weekly digest (boosternews.digest): subject + intro per language, and whether to auto-send.
+    # Auto-send OFF by default → the digest campaign is created as a draft for the owner to review.
+    newsletter_digest_subject: str = "Vaccari's Code — a semana em software e IA"
+    newsletter_digest_subject_en: str = "Vaccari's Code — this week in software & AI"
+    newsletter_digest_intro: str = (
+        "Os destaques da semana em software, IA e tecnologia — direto ao ponto."
+    )
+    newsletter_digest_intro_en: str = (
+        "This week's highlights in software, AI, and tech — straight to the point."
+    )
+    newsletter_digest_autosend: bool = False
     # Scheduler (task group 9). Minutes per job; 0 disables. tick = poll granularity.
     sched_tick_seconds: int = 30
     sched_ingest_minutes: int = 60
