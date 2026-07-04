@@ -75,7 +75,7 @@ with its blurb and a link). It needs an API user token:
    LISTMONK_LIST_ID=<pt id>
    LISTMONK_LIST_ID_EN=<en id>
    ```
-3. The digest runs weekly via cron (`deploy/weekly-digest.sh`, Mondays by default) — or on demand:
+3. The digest runs weekly via cron (`deploy/weekly-digest.sh`, Sundays 7:00 PM US Eastern by default) — or on demand:
    ```
    docker … run --rm pipeline python -m boosternews digest   # (or deploy/weekly-digest.sh)
    ```

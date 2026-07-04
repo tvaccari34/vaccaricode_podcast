@@ -9,6 +9,7 @@ export const STRINGS = {
     base: "", // URL prefix for this language
     other: "en",
     otherLabel: "EN",
+    selfLabel: "PT",
     tagline: "tendências em TI e dev",
     nav: { blog: "Blog", podcast: "Podcast", about: "Sobre", subscribe: "Assinar" },
     heroTitle: "Tendências em software e IA, no piloto automático",
@@ -34,6 +35,7 @@ export const STRINGS = {
     base: "/en",
     other: "pt-BR",
     otherLabel: "PT",
+    selfLabel: "EN",
     tagline: "IT & dev trends",
     nav: { blog: "Blog", podcast: "Podcast", about: "About", subscribe: "Subscribe" },
     heroTitle: "Trends in software & AI, on autopilot",
