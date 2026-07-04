@@ -155,6 +155,8 @@ _CREATE_STYLE = """
     label { display: block; margin: .6rem 0 .2rem; font-weight: 600; font-size: .9em; }
     input[type=text], textarea { width: 100%; box-sizing: border-box; padding: .5rem; border: 1px solid #8884; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
     textarea { font: 13px/1.5 ui-monospace, monospace; resize: vertical; }
+    input[type=file] { display: block; margin: .35rem 0; max-width: 100%; }
+    .hint { color: #888; font-size: .8em; margin: .2rem 0 0; }
     .actions { margin: 1rem 0; display: flex; gap: .5rem; flex-wrap: wrap; }
     button { border: none; border-radius: 6px; padding: .5rem 1rem; cursor: pointer; color: #fff; font-weight: 600; }
     .draft { background: #6b7280; } .approve { background: #16a34a; }
@@ -217,8 +219,9 @@ CREATE_EPISODE = (
       <textarea name="{{ L.prefix }}_script" rows="14"></textarea>
       <label>Show notes (optional)</label>
       <textarea name="{{ L.prefix }}_notes" rows="4"></textarea>
-      <label>Upload audio (MP3, optional)</label>
-      <input type="file" name="{{ L.prefix }}_audio" accept="audio/*" />
+      <label for="{{ L.prefix }}_audio">Upload audio (MP3, optional)</label>
+      <input id="{{ L.prefix }}_audio" type="file" name="{{ L.prefix }}_audio" accept="audio/*" />
+      <p class="hint">The file uploads when you click <strong>Save</strong> below — there's no separate upload button. Leave empty to add audio later from Manage.</p>
       {% if L.prefix == 'primary' %}
       <label style="font-weight:400"><input type="checkbox" name="primary_narrate" value="1" /> …or queue {{ primary }} narration now (home GPU sound-worker) — ignored if you upload a file above</label>
       {% endif %}
