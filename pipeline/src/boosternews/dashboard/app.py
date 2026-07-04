@@ -251,7 +251,7 @@ async def create_episode(
         "manual episode created (topic %s, %d language(s), approve=%s, uploads=%d)",
         topic_id, len(chosen), approve, len(to_store),
     )
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/manage", status_code=303)
 
 
 @app.post("/episode/{episode_id}/renarrate")
