@@ -119,6 +119,8 @@ class Settings(BaseSettings):
     custom_tts_voice: str = ""
     custom_tts_voice_en: str = ""
     custom_tts_format: str = "generic"  # generic | openai
+    # UTM tagging of externally-delivered links (newsletter email, podcast show notes).
+    utm_enabled: bool = True
 
 
 @lru_cache(maxsize=1)

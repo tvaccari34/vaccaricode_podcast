@@ -178,3 +178,32 @@ Cloud providers can also **auto-narrate English** — set `NARRATION_SECONDARY_E
 off keeps English as a manual MP3 upload). To A/B quality, switch the provider and re-narrate one
 episode from the dashboard. Revert anytime with `NARRATION_PROVIDER=local`. Note: ElevenLabs bills
 per character.
+
+## Site analytics (Umami) + UTM
+
+Privacy-friendly, cookieless web analytics, self-hosted, reusing the shared Postgres. Served at
+`analytics.tiagovaccari.com`. The tracker/ingest endpoints are public (that's how analytics works);
+the dashboard is guarded by Umami's own login (no Basic Auth in front).
+
+**Two-phase rollout** (the website id only exists once Umami is up):
+
+1. **Deploy Umami.** Create the `umami` DB (`CREATE DATABASE umami OWNER boosternews;`), set
+   `UMAMI_DATABASE_URL` + `UMAMI_APP_SECRET` in `.env`, `docker stack deploy`. Add a **DNS A record**
+   `analytics.tiagovaccari.com → 5.161.51.51` and nudge the TLS cert. Log in (default `admin`/`umami`
+   — **change the password immediately**), add the website `tiagovaccari.com`, copy its **website id**.
+2. **Activate the tracker.** Set `PUBLIC_UMAMI_WEBSITE_ID` (+ `PUBLIC_UMAMI_SRC`) in `.env`, confirm
+   the CSP (`bn-csp`) lists `https://analytics.tiagovaccari.com` in `script-src`/`connect-src`, and
+   rebuild the site (`deploy/redeploy.sh`). Load a page → a pageview appears in Umami.
+
+**Kill switch:** unset `PUBLIC_UMAMI_WEBSITE_ID` and rebuild → the tracker is removed.
+
+**UTM convention** (`UTM_ENABLED=true`, default): only links delivered through *external* channels are
+tagged, so on-site navigation isn't misattributed. `with_utm()` applies:
+
+| Channel | utm_source | utm_medium | utm_campaign |
+|---|---|---|---|
+| Weekly newsletter (email) | `newsletter` | `email` | `weekly-digest-<YYYY-Www>` |
+| Podcast show notes | `podcast` | `podcast` | `episode-<topic_id>` |
+| Social posts (manual) | `x` / `linkedin` / `github` | `social` | free-form |
+
+On-site blog CTAs stay untagged. Umami reads `utm_*` off the landing URL automatically.
