@@ -18,7 +18,7 @@ const OWNER_NAME = "Tiago Vaccari";
 // Used by Apple only to verify feed ownership at submission; a role address on the owned domain.
 const OWNER_EMAIL = process.env.PUBLIC_PODCAST_OWNER_EMAIL || "podcast@tiagovaccari.com";
 const ITUNES_CATEGORY = "Technology";
-const COVER_PATH = "/cover-art.png"; // 1536² square brand art in web/public
+const COVER_PATH = "/cover-art-512.png"; // 1536² square brand art in web/public
 // Stable per-feed GUID = uuidv5(feed URL w/o scheme) under the Podcast Namespace GUID namespace.
 // Must never change even if the feed URL moves, so it is pinned here rather than derived at build.
 const PODCAST_GUID = {
