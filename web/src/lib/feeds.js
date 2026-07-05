@@ -6,6 +6,21 @@ import { STRINGS } from "./i18n.js";
 const esc = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// OP3 open analytics prefix (op3.dev): wrap episode enclosure URLs so downloads are counted.
+// Per op3.dev/setup, https targets drop their scheme and http targets keep it; dev/localhost
+// URLs are left untouched. Set PUBLIC_OP3_PREFIX="" to disable.
+const OP3_PREFIX = process.env.PUBLIC_OP3_PREFIX ?? "https://op3.dev/e/";
+export function withOp3(url) {
+  if (!OP3_PREFIX || typeof url !== "string") return url;
+  const m = /^(https?):\/\/([^/]+)(?:\/|$)/i.exec(url);
+  if (!m) return url; // not an absolute http(s) URL — leave as-is
+  const host = m[2].toLowerCase();
+  if (host === "localhost" || host.startsWith("localhost:") || host.startsWith("127.") || host.endsWith(".local"))
+    return url; // don't pollute dev feeds with unreachable localhost targets
+  // https → strip the scheme; http → keep the full URL after the prefix.
+  return m[1].toLowerCase() === "https" ? OP3_PREFIX + url.slice(8) : OP3_PREFIX + url;
+}
+
 function rootUrl(siteUrl) {
   return (siteUrl || "http://localhost/").toString().replace(/\/$/, "");
 }
@@ -63,7 +78,7 @@ export async function podcastFeed(lang, siteUrl) {
   const items = episodes
     .map((e) => {
       const link = `${base}/podcast/${e.topic_id}`;
-      const enclosure = `<enclosure url="${esc(e.audio_url)}" type="audio/mpeg" length="${e.file_size_bytes || 0}" />`;
+      const enclosure = `<enclosure url="${esc(withOp3(e.audio_url))}" type="audio/mpeg" length="${e.file_size_bytes || 0}" />`;
       const duration = e.duration_seconds ? `<itunes:duration>${e.duration_seconds}</itunes:duration>` : "";
       return (
         `<item><title>${esc(e.title)}</title><link>${link}</link>` +
