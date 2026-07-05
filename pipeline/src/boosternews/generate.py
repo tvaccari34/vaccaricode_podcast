@@ -16,6 +16,7 @@ from . import repository as repo
 from .config import get_settings
 from .db import get_conn
 from .llm import generate as llm_generate
+from .utm import with_utm
 from .prompts import (
     DEFAULT_BRAND_VOICE,
     FORMAT_INSTRUCTION,
@@ -125,21 +126,25 @@ def _show_notes(blurb: str, sources: list[str], heading: str = "Sources") -> str
     return notes
 
 
-def subscribe_url(language_code: str) -> str:
-    """Absolute URL of the subscribe page for a language (pt-BR at root, others under /<code>)."""
+def subscribe_url(language_code: str, *, utm: dict | None = None) -> str:
+    """Absolute URL of the subscribe page for a language (pt-BR at root, others under /<code>).
+
+    Pass ``utm`` (source/medium/campaign) only for links delivered off-site (podcast/newsletter).
+    """
     s = get_settings()
     root = s.public_site_url.rstrip("/")
     base = "" if language_code == s.primary_language_code else f"/{language_code}"
-    return f"{root}{base}{s.subscribe_path}"
+    url = f"{root}{base}{s.subscribe_path}"
+    return with_utm(url, **utm) if utm else url
 
 
-def subscribe_cta(language_code: str) -> str:
+def subscribe_cta(language_code: str, *, utm: dict | None = None) -> str:
     """Localized subscribe/referral block for a language ("" when disabled)."""
     s = get_settings()
     if not s.subscribe_cta_enabled:
         return ""
     template = s.subscribe_cta if language_code == s.primary_language_code else s.subscribe_cta_en
-    return template.format(url=subscribe_url(language_code)).strip()
+    return template.format(url=subscribe_url(language_code, utm=utm)).strip()
 
 
 def append_subscribe_cta(text: str, cta: str) -> str:
@@ -222,7 +227,9 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     raw_script = strip_code_fences(gen(build_prompt(topic, "podcast"), system=system))
     blurb = strip_code_fences(gen(build_prompt(topic, "newsletter"), system=system))
 
-    pt_cta = subscribe_cta(s.primary_language_code)
+    pt_cta = subscribe_cta(s.primary_language_code)  # on-site blog CTA — untagged
+    pod_utm = {"source": "podcast", "medium": "podcast", "campaign": f"episode-{topic_id}"}
+    pt_pod_cta = subscribe_cta(s.primary_language_code, utm=pod_utm)  # off-site show notes — tagged
     pt_script = f"{s.podcast_intro}\n\n{raw_script}" if s.podcast_intro else raw_script
     pt_blog = append_subscribe_cta(
         assemble_blog_markdown(
@@ -230,7 +237,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         ),
         pt_cta,
     )
-    pt_show_notes = append_subscribe_cta(_show_notes(blurb, sources, s.sources_heading), pt_cta)
+    pt_show_notes = append_subscribe_cta(_show_notes(blurb, sources, s.sources_heading), pt_pod_cta)
 
     # Secondary-language (English) mirror via translation — no narration.
     en = None
@@ -243,7 +250,8 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         en_script = (
             f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
         )
-        en_cta = subscribe_cta(s.secondary_language_code)
+        en_cta = subscribe_cta(s.secondary_language_code)  # on-site blog CTA — untagged
+        en_pod_cta = subscribe_cta(s.secondary_language_code, utm=pod_utm)  # show notes — tagged
         en_blog = append_subscribe_cta(
             assemble_blog_markdown(
                 en_title, en_blog_body, sources, topic_id,
@@ -257,7 +265,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
             "blurb": en_blurb,
             "script": en_script,
             "show_notes": append_subscribe_cta(
-                _show_notes(en_blurb, sources, s.secondary_sources_heading), en_cta
+                _show_notes(en_blurb, sources, s.secondary_sources_heading), en_pod_cta
             ),
         }
 

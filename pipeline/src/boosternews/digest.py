@@ -14,6 +14,7 @@ from . import listmonk
 from . import repository as repo
 from .config import get_settings
 from .db import get_conn
+from .utm import with_utm
 
 log = logging.getLogger("boosternews.digest")
 
@@ -63,6 +64,12 @@ def run_digest(now: datetime | None = None) -> dict[str, str]:
         if not items:
             summary[lang] = "no new posts — skipped"
             continue
+
+        # Tag the "read more" links so analytics attributes these visits to the newsletter.
+        campaign = f"weekly-digest-{now:%G-W%V}"
+        for it in items:
+            if it.get("url"):
+                it["url"] = with_utm(it["url"], source="newsletter", medium="email", campaign=campaign)
 
         subject, body = build_digest_body(items, lang)
         try:

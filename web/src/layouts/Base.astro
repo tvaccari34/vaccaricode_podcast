@@ -9,6 +9,9 @@ const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagl
 // Where the PT/EN toggle points: the equivalent page if given, else the other language's home.
 const otherHome = STRINGS[t.other].base || "/";
 const toggleHref = alt || otherHome;
+// Umami analytics: emitted only when configured (dev/local builds stay clean; unset = kill switch).
+const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC;
+const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 ---
 
 <!doctype html>
@@ -31,6 +34,7 @@ const toggleHref = alt || otherHome;
       const theme = saved || "dark";
       document.documentElement.setAttribute("data-theme", theme);
     </script>
+    {umamiId && umamiSrc && <script defer src={umamiSrc} data-website-id={umamiId}></script>}
   </head>
   <body>
     <header class="site">
@@ -63,6 +67,13 @@ const toggleHref = alt || otherHome;
         <a href={href(lang, "/rss.xml")}>{t.rssLabel}</a> ·
         <a href={href(lang, "/podcast/feed.xml")}>{t.feedLabel}</a>
       </div>
+      {umamiId && (
+        <div class="wrap" style="opacity:.65;font-size:.82em;margin-top:.35rem">
+          {lang === "en"
+            ? "Anonymous, cookieless analytics — no personal data or cross-site tracking."
+            : "Análise anônima e sem cookies — sem dados pessoais nem rastreamento entre sites."}
+        </div>
+      )}
     </footer>
 
     <script is:inline>
