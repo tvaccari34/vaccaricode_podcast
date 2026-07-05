@@ -287,7 +287,8 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
                 show_notes=en["show_notes"],
                 meta=meta,
                 voice_id=None,
-                narrate=False,
+                # Secondary language is manual-audio by default; a cloud provider can auto-narrate it.
+                narrate=s.narration_secondary_enabled,
             )
         repo.set_topic_status(conn, topic_id, "drafted")
         conn.commit()

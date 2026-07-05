@@ -104,6 +104,21 @@ class Settings(BaseSettings):
     voice_id: str = "tiago"
     audio_intro_path: str = ""
     audio_outro_path: str = ""
+    # ── Narration backend (TTS provider) ─────────────────────────────────
+    # local = home GPU sound-worker (F5/XTTS, default). elevenlabs / custom synthesize on the VPS.
+    narration_provider: str = "local"
+    # Also auto-narrate the secondary language (English) — only meaningful for a cloud provider.
+    narration_secondary_enabled: bool = False
+    elevenlabs_api_key: str = ""
+    elevenlabs_model: str = "eleven_multilingual_v2"
+    elevenlabs_voice_id: str = ""  # primary-language voice (from your ElevenLabs clone)
+    elevenlabs_voice_id_en: str = ""  # secondary-language voice (falls back to the primary)
+    custom_tts_url: str = ""
+    custom_tts_api_key: str = ""
+    custom_tts_model: str = ""
+    custom_tts_voice: str = ""
+    custom_tts_voice_en: str = ""
+    custom_tts_format: str = "generic"  # generic | openai
 
 
 @lru_cache(maxsize=1)
