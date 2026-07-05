@@ -100,6 +100,15 @@ services:
         - traefik.http.routers.bn-listmonk.tls.certresolver=letsencryptresolver
         - traefik.http.routers.bn-listmonk.service=bn-listmonk
         - traefik.http.routers.bn-listmonk.middlewares=bn-sec-headers
+        # Admin + admin API behind Basic Auth; public subscribe pages and /api/public (captcha) stay open.
+        - "traefik.http.routers.bn-listmonk-admin.rule=Host(`news.tiagovaccari.com`) && (PathPrefix(`/admin`) || PathPrefix(`/api`)) && !PathPrefix(`/api/public`)"
+        - traefik.http.routers.bn-listmonk-admin.entrypoints=websecure
+        - traefik.http.routers.bn-listmonk-admin.tls=true
+        - traefik.http.routers.bn-listmonk-admin.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.bn-listmonk-admin.service=bn-listmonk
+        - traefik.http.routers.bn-listmonk-admin.priority=100
+        - traefik.http.routers.bn-listmonk-admin.middlewares=bn-lm-auth,bn-sec-headers
+        - traefik.http.middlewares.bn-lm-auth.basicauth.users=${LISTMONK_ADMIN_BASICAUTH}
 
   narration-api:
     image: boosternews/pipeline:local
