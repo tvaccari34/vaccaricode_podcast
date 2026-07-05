@@ -67,6 +67,12 @@ def default_jobs() -> list[Job]:
         from .generate import generate_top
 
         jobs.append(Job("generate", s.sched_generate_minutes * 60, generate_top))
+    # Cloud TTS (elevenlabs/custom): drain narration jobs on the VPS. For 'local' the home worker
+    # drains, so no scheduler job is added.
+    if (s.narration_provider or "local").strip().lower() != "local":
+        from .narration.service import drain_once
+
+        jobs.append(Job("narrate", max(s.sched_tick_seconds, 20), lambda: drain_once(limit=5)))
     jobs.append(Job("publish", s.sched_publish_minutes * 60, _publish))
     return jobs
 

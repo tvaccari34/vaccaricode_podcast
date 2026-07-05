@@ -12,17 +12,14 @@ uploads it to object storage, and records the audio URL + duration + size on the
 from __future__ import annotations
 
 import logging
-import os
-import tempfile
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 
-from .. import audio
 from .. import repository as repo
-from .. import storage
 from ..config import get_settings
 from ..db import get_conn
+from .service import complete_narration
 
 log = logging.getLogger("boosternews.narration")
 
@@ -42,6 +39,10 @@ def health() -> dict:
 
 @app.post("/narration/claim")
 def claim(payload: dict | None = None, _: None = Depends(require_token)):
+    # When a cloud provider is active, the VPS drainer processes jobs — serve none to the home
+    # worker so a job is never synthesized twice.
+    if (get_settings().narration_provider or "local").strip().lower() != "local":
+        return Response(status_code=204)
     worker_id = (payload or {}).get("worker_id", "worker")
     with get_conn() as conn:
         job = repo.claim_next_job(conn, worker_id)
@@ -59,54 +60,12 @@ async def complete(
     _: None = Depends(require_token),
 ):
     data = await audio_file.read()
-    settings = get_settings()
-
     with get_conn() as conn:
         job = repo.get_job(conn, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="job not found")
-    episode_id = job["episode_id"]
-
-    # Store the raw narration, then assemble the final episode audio.
-    storage.ensure_bucket()
-    storage.upload_bytes(data, f"narration/{episode_id}/raw.wav", content_type="audio/wav")
-
-    intro = settings.audio_intro_path or None
-    outro = settings.audio_outro_path or None
-    with tempfile.TemporaryDirectory() as tmp:
-        raw_path = os.path.join(tmp, "raw.wav")
-        out_path = os.path.join(tmp, "episode.mp3")
-        with open(raw_path, "wb") as fh:
-            fh.write(data)
-        duration, size = audio.assemble(
-            raw_path,
-            out_path,
-            intro=intro if intro and os.path.exists(intro) else None,
-            outro=outro if outro and os.path.exists(outro) else None,
-        )
-        final_key = f"podcast/{episode_id}.mp3"
-        storage.upload_file(out_path, final_key, content_type="audio/mpeg")
-
-    audio_url = storage.public_url(final_key)
-    with get_conn() as conn:
-        # Keep an already-published episode live when it is re-narrated; otherwise mark it ready
-        # for review/publish (first narration).
-        target_status = repo.episode_audio_target_status(conn, episode_id)
-        repo.update_episode_audio(
-            conn, episode_id, audio_url, int(duration), size, status=target_status
-        )
-        repo.complete_job(conn, job_id, final_key)
-        repo.request_site_rebuild(conn)  # reflect new audio on the live site within ~1 min
-        conn.commit()
-
-    log.info(
-        "episode %s audio ready: %s (%.1fs, %d bytes)",
-        episode_id,
-        audio_url,
-        duration,
-        size,
-    )
-    return {"ok": True, "audio_url": audio_url, "duration": int(duration), "size": size}
+    result = complete_narration(job["episode_id"], job_id, data)
+    return {"ok": True, **result}
 
 
 @app.post("/narration/{job_id}/fail")

@@ -145,3 +145,36 @@ After deploy, confirm the loop:
   (and the `listmonk` DB). Schedule daily.
 - **Object storage:** back up the MinIO `boosternews-audio` bucket (or use a managed S3 with
   versioning).
+
+## Narration backend (TTS providers)
+
+Podcast narration has a pluggable backend, selected by `NARRATION_PROVIDER` in `.env`:
+
+- **`local`** (default): the home GPU sound-worker (F5/XTTS). Nothing else to configure.
+- **`elevenlabs`**: synthesized on the VPS via ElevenLabs (no home PC needed). Create a voice in the
+  ElevenLabs dashboard, copy its **voice id**, then set:
+  ```ini
+  NARRATION_PROVIDER=elevenlabs
+  ELEVENLABS_API_KEY=...
+  ELEVENLABS_VOICE_ID=<primary voice>
+  ELEVENLABS_VOICE_ID_EN=<english voice, optional>
+  # ELEVENLABS_MODEL=eleven_multilingual_v2
+  ```
+- **`custom`**: your own/self-hosted model via HTTP. Generic mode posts `{text,voice,language,format}`;
+  OpenAI mode posts `{model,input,voice,response_format}` to a `/v1/audio/speech`-style endpoint:
+  ```ini
+  NARRATION_PROVIDER=custom
+  CUSTOM_TTS_URL=https://...
+  CUSTOM_TTS_API_KEY=...          # optional (Bearer)
+  CUSTOM_TTS_VOICE=...            # + CUSTOM_TTS_VOICE_EN
+  CUSTOM_TTS_FORMAT=generic       # or: openai
+  ```
+
+Then redeploy (`deploy/redeploy.sh`). For a cloud provider, a **scheduler `narrate` job** drains the
+narration queue on the VPS and the `/narration/claim` API stops serving the home worker (so a job is
+never done twice). Assembly (intro/outro, normalization, MP3) is identical across providers.
+
+Cloud providers can also **auto-narrate English** — set `NARRATION_SECONDARY_ENABLED=true` (default
+off keeps English as a manual MP3 upload). To A/B quality, switch the provider and re-narrate one
+episode from the dashboard. Revert anytime with `NARRATION_PROVIDER=local`. Note: ElevenLabs bills
+per character.
