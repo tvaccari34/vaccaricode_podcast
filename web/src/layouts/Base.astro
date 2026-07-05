@@ -9,6 +9,12 @@ const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagl
 // Where the PT/EN toggle points: the equivalent page if given, else the other language's home.
 const otherHome = STRINGS[t.other].base || "/";
 const toggleHref = alt || otherHome;
+
+// Umami web analytics (self-hosted). Enabled only when PUBLIC_UMAMI_WEBSITE_ID is set at build,
+// so dev builds stay untracked. data-domains restricts tracking to the live host (belt-and-braces).
+const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
+const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC || "https://analytics.tiagovaccari.com/script.js";
+const umamiDomains = import.meta.env.PUBLIC_UMAMI_DOMAINS || "tiagovaccari.com";
 ---
 
 <!doctype html>
@@ -25,6 +31,9 @@ const toggleHref = alt || otherHome;
     <link rel="apple-touch-icon" href="/favicon-180.png" />
     <link rel="alternate" type="application/rss+xml" title="Blog RSS" href={href(lang, "/rss.xml")} />
     <link rel="alternate" type="application/rss+xml" title="Podcast" href={href(lang, "/podcast/feed.xml")} />
+    {umamiId && (
+      <script is:inline defer src={umamiSrc} data-website-id={umamiId} data-domains={umamiDomains}></script>
+    )}
     <script is:inline>
       // Neon look is dark-first: default to dark unless the user chose light.
       const saved = localStorage.getItem("theme");
