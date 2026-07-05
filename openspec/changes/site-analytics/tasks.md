@@ -4,7 +4,7 @@
 - [x] 1.1 Create a `umami` DB + role on the shared `postgres_postgres` (one-off SQL); store password in `.env`.
 - [x] 1.2 Add a `umami` service to `deploy/stack.boosternews.yml` (image `ghcr.io/umami-software/umami:postgresql-latest`, `DATABASE_URL` → `postgres_postgres/umami`, `APP_SECRET`, `BoosterBot_Network`).
 - [x] 1.3 Traefik router `Host(\`umami.tiagovaccari.com\`)` → port 3000, TLS `letsencryptresolver`, `bn-sec-headers` (NO Basic Auth — collection endpoints must stay public).
-- [ ] 1.4 DNS A record for `umami.tiagovaccari.com`; deploy; confirm Umami is up and its login works.
+- [x] 1.4 DNS A record for `umami.tiagovaccari.com`; deploy; confirm Umami is up and its login works.
 
 ## 2. Register the site + config
 - [x] 2.1 In the Umami dashboard: set admin password, add website `tiagovaccari.com` → copy the **website id**.
@@ -25,10 +25,10 @@
 - [x] 5.1 Add one line to the site's privacy/about copy: anonymous, cookieless analytics, no PII / cross-site tracking.
 
 ## 6. Verify end-to-end
-- [ ] 6.1 Umami dashboard reachable + login works; `/script.js` and `/api/send` are publicly reachable (no auth).
-- [ ] 6.2 Load a site page → a **pageview appears in Umami**, with **no CSP violation** in the browser console.
-- [ ] 6.3 Visit a UTM-tagged link → Umami records the expected source/medium/campaign.
-- [ ] 6.4 Unset `PUBLIC_UMAMI_WEBSITE_ID` + rebuild → tracker absent (kill switch works).
+- [x] 6.1 Umami dashboard reachable + login works; `/script.js` and `/api/send` are publicly reachable (no auth).
+- [x] 6.2 Load a site page → a **pageview appears in Umami**, with **no CSP violation** in the browser console.
+- [x] 6.3 Visit a UTM-tagged link → Umami records the expected source/medium/campaign.
+- [x] 6.4 Unset `PUBLIC_UMAMI_WEBSITE_ID` + rebuild → tracker absent (kill switch works).
 - [x] 6.5 `with_utm` unit tests: idempotency, existing-query preservation, encoding.
 
 ## 7. Docs
