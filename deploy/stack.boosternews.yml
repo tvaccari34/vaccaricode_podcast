@@ -52,13 +52,23 @@ services:
         - traefik.http.routers.bn-web.tls=true
         - traefik.http.routers.bn-web.tls.certresolver=letsencryptresolver
         - traefik.http.routers.bn-web.service=bn-web
+        - traefik.http.routers.bn-web.middlewares=bn-sec-headers,bn-csp
+        # Security middlewares — defined here (on web), referenced by the routers below.
+        - traefik.http.middlewares.bn-sec-headers.headers.stsSeconds=31536000
+        - traefik.http.middlewares.bn-sec-headers.headers.stsIncludeSubdomains=true
+        - traefik.http.middlewares.bn-sec-headers.headers.contentTypeNosniff=true
+        - traefik.http.middlewares.bn-sec-headers.headers.frameDeny=true
+        - traefik.http.middlewares.bn-sec-headers.headers.referrerPolicy=strict-origin-when-cross-origin
+        - "traefik.http.middlewares.bn-csp.headers.contentSecurityPolicy=default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; form-action 'self' https://news.tiagovaccari.com"
+        - traefik.http.middlewares.bn-ratelimit.ratelimit.average=15
+        - traefik.http.middlewares.bn-ratelimit.ratelimit.burst=30
         # www -> apex redirect
         - traefik.http.routers.bn-www.rule=Host(`www.tiagovaccari.com`)
         - traefik.http.routers.bn-www.entrypoints=websecure
         - traefik.http.routers.bn-www.tls=true
         - traefik.http.routers.bn-www.tls.certresolver=letsencryptresolver
         - traefik.http.routers.bn-www.service=bn-web
-        - traefik.http.routers.bn-www.middlewares=bn-wwwredir
+        - traefik.http.routers.bn-www.middlewares=bn-wwwredir,bn-sec-headers
         - traefik.http.middlewares.bn-wwwredir.redirectregex.regex=^https?://www\.(.*)
         - traefik.http.middlewares.bn-wwwredir.redirectregex.replacement=https://$${1}
         - traefik.http.middlewares.bn-wwwredir.redirectregex.permanent=true
@@ -89,6 +99,7 @@ services:
         - traefik.http.routers.bn-listmonk.tls=true
         - traefik.http.routers.bn-listmonk.tls.certresolver=letsencryptresolver
         - traefik.http.routers.bn-listmonk.service=bn-listmonk
+        - traefik.http.routers.bn-listmonk.middlewares=bn-sec-headers
 
   narration-api:
     image: boosternews/pipeline:local
@@ -122,6 +133,7 @@ services:
         - traefik.http.routers.bn-dashboard.tls=true
         - traefik.http.routers.bn-dashboard.tls.certresolver=letsencryptresolver
         - traefik.http.routers.bn-dashboard.service=bn-dashboard
+        - traefik.http.routers.bn-dashboard.middlewares=bn-sec-headers,bn-csp,bn-ratelimit
 
 networks:
   BoosterBot_Network:
