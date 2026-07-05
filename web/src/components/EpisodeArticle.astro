@@ -1,9 +1,9 @@
 ---
-import { marked } from "marked";
+import { renderMarkdown } from "../lib/markdown.js";
 import { STRINGS, href } from "../lib/i18n.js";
 const { episode, lang } = Astro.props;
 const t = STRINGS[lang];
-const notesHtml = episode.show_notes ? marked.parse(episode.show_notes) : "";
+const notesHtml = episode.show_notes ? renderMarkdown(episode.show_notes) : "";
 ---
 <article>
   <h1>{episode.title}</h1>
