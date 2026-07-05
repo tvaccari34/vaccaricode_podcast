@@ -5,10 +5,13 @@ from __future__ import annotations
 from datetime import date
 
 from boosternews.generate import (
+    append_subscribe_cta,
     assemble_blog_markdown,
     build_prompt,
     source_block,
     strip_code_fences,
+    subscribe_cta,
+    subscribe_url,
 )
 
 TOPIC = {
@@ -68,3 +71,31 @@ def test_strip_code_fences():
     assert strip_code_fences("```markdown\nhello\n```") == "hello"
     assert strip_code_fences("```\nhi\n```") == "hi"
     assert strip_code_fences("plain text") == "plain text"
+
+
+def test_subscribe_url_per_language():
+    # pt-BR lives at the site root; secondary languages sit under /<code>.
+    assert subscribe_url("pt-BR") == "http://localhost/subscribe"
+    assert subscribe_url("en") == "http://localhost/en/subscribe"
+
+
+def test_subscribe_cta_is_localized_and_linked():
+    pt = subscribe_cta("pt-BR")
+    en = subscribe_cta("en")
+    assert "Assinar" in pt and "http://localhost/subscribe" in pt
+    assert "Subscribe" in en and "http://localhost/en/subscribe" in en
+    assert "{url}" not in pt  # template placeholder filled
+
+
+def test_subscribe_cta_disabled(monkeypatch):
+    from boosternews.config import get_settings
+
+    monkeypatch.setenv("SUBSCRIBE_CTA_ENABLED", "false")
+    get_settings.cache_clear()
+    assert subscribe_cta("pt-BR") == ""
+
+
+def test_append_subscribe_cta():
+    out = append_subscribe_cta("Body.", "Subscribe: x")
+    assert out == "Body.\n\n---\n\nSubscribe: x\n"  # rule-separated block
+    assert append_subscribe_cta("Body.", "") == "Body."  # no-op when CTA empty

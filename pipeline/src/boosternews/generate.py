@@ -125,6 +125,30 @@ def _show_notes(blurb: str, sources: list[str], heading: str = "Sources") -> str
     return notes
 
 
+def subscribe_url(language_code: str) -> str:
+    """Absolute URL of the subscribe page for a language (pt-BR at root, others under /<code>)."""
+    s = get_settings()
+    root = s.public_site_url.rstrip("/")
+    base = "" if language_code == s.primary_language_code else f"/{language_code}"
+    return f"{root}{base}{s.subscribe_path}"
+
+
+def subscribe_cta(language_code: str) -> str:
+    """Localized subscribe/referral block for a language ("" when disabled)."""
+    s = get_settings()
+    if not s.subscribe_cta_enabled:
+        return ""
+    template = s.subscribe_cta if language_code == s.primary_language_code else s.subscribe_cta_en
+    return template.format(url=subscribe_url(language_code)).strip()
+
+
+def append_subscribe_cta(text: str, cta: str) -> str:
+    """Append a CTA block to markdown/show notes, separated by a horizontal rule."""
+    if not cta:
+        return text
+    return f"{text.rstrip()}\n\n---\n\n{cta}\n"
+
+
 # ── Orchestration (DB + model) ──────────────────────────────────────────────
 def localized_title(source_title: str, *, gen=llm_generate) -> str:
     """Rewrite a source headline into a concise title in the configured content language."""
@@ -198,10 +222,15 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     raw_script = strip_code_fences(gen(build_prompt(topic, "podcast"), system=system))
     blurb = strip_code_fences(gen(build_prompt(topic, "newsletter"), system=system))
 
+    pt_cta = subscribe_cta(s.primary_language_code)
     pt_script = f"{s.podcast_intro}\n\n{raw_script}" if s.podcast_intro else raw_script
-    pt_blog = assemble_blog_markdown(
-        title, blog_body, sources, topic_id, sources_heading=s.sources_heading
+    pt_blog = append_subscribe_cta(
+        assemble_blog_markdown(
+            title, blog_body, sources, topic_id, sources_heading=s.sources_heading
+        ),
+        pt_cta,
     )
+    pt_show_notes = append_subscribe_cta(_show_notes(blurb, sources, s.sources_heading), pt_cta)
 
     # Secondary-language (English) mirror via translation — no narration.
     en = None
@@ -214,15 +243,22 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         en_script = (
             f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
         )
-        en_blog = assemble_blog_markdown(
-            en_title, en_blog_body, sources, topic_id, sources_heading=s.secondary_sources_heading
+        en_cta = subscribe_cta(s.secondary_language_code)
+        en_blog = append_subscribe_cta(
+            assemble_blog_markdown(
+                en_title, en_blog_body, sources, topic_id,
+                sources_heading=s.secondary_sources_heading,
+            ),
+            en_cta,
         )
         en = {
             "title": en_title,
             "blog_md": en_blog,
             "blurb": en_blurb,
             "script": en_script,
-            "show_notes": _show_notes(en_blurb, sources, s.secondary_sources_heading),
+            "show_notes": append_subscribe_cta(
+                _show_notes(en_blurb, sources, s.secondary_sources_heading), en_cta
+            ),
         }
 
     with get_conn() as conn:
@@ -234,7 +270,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
             blog_md=pt_blog,
             blurb=blurb,
             script=pt_script,
-            show_notes=_show_notes(blurb, sources, s.sources_heading),
+            show_notes=pt_show_notes,
             meta=meta,
             voice_id=s.voice_id,
             narrate=True,

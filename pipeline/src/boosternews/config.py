@@ -61,6 +61,20 @@ class Settings(BaseSettings):
     podcast_intro_en: str = (
         "What's up everyone! Welcome back to Vaccari's Code Podcast. Tiago here."
     )
+    # Subscribe CTA: a referral block appended to generated blog posts + episode show notes,
+    # pointing readers/listeners at the newsletter. Disable with subscribe_cta_enabled=false.
+    # {url} is filled with the language's subscribe page under public_site_url (so set that to the
+    # real domain in prod — it doubles as the permalink base below).
+    subscribe_cta_enabled: bool = True
+    subscribe_path: str = "/subscribe"
+    subscribe_cta: str = (
+        "📬 **Gostou?** Assine a newsletter do Vaccari's Code e receba as próximas tendências "
+        "em software e IA direto no seu e-mail: **[Assinar aqui]({url})**"
+    )
+    subscribe_cta_en: str = (
+        "📬 **Enjoyed this?** Subscribe to the Vaccari's Code newsletter for the next wave of "
+        "software & AI trends, straight to your inbox: **[Subscribe here]({url})**"
+    )
     # Publishing: public base URL for permalinks + Listmonk campaign API (optional until group 7).
     public_site_url: str = "http://localhost"
     listmonk_api_url: str = "http://listmonk:9000"
