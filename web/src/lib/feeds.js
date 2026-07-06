@@ -63,7 +63,7 @@ export async function blogRss(lang, siteUrl) {
     })
     .join("");
   const langLabel = lang === "en" ? " (EN)" : "";
-  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Vaccari's Code Podcast${langLabel}</title><link>${base}/</link><description>${lang === "en" ? "Automated trends in software development and AI." : "Tendências automatizadas em desenvolvimento de software e IA."}</description>${items}</channel></rss>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Vaccari's Code${langLabel}</title><link>${base}/</link><description>${lang === "en" ? "Automated trends in software development and AI." : "Tendências automatizadas em desenvolvimento de software e IA."}</description>${items}</channel></rss>`;
 }
 
 export async function podcastFeed(lang, siteUrl) {
@@ -71,7 +71,7 @@ export async function podcastFeed(lang, siteUrl) {
   const cover = `${rootUrl(siteUrl)}${COVER_PATH}`;
   const feedUrl = `${base}/podcast/feed.xml`;
   const langLabel = lang === "en" ? " (EN)" : "";
-  const title = `Vaccari's Code Podcast${langLabel}`;
+  const title = `Vaccari's Code${langLabel}`;
   const desc = CHANNEL_DESC[lang] || CHANNEL_DESC["pt-BR"];
 
   const episodes = await getPublishedEpisodes(lang, { withAudioOnly: true });
