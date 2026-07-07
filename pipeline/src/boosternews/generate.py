@@ -231,6 +231,8 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     pod_utm = {"source": "podcast", "medium": "podcast", "campaign": f"episode-{topic_id}"}
     pt_pod_cta = subscribe_cta(s.primary_language_code, utm=pod_utm)  # off-site show notes — tagged
     pt_script = f"{s.podcast_intro}\n\n{raw_script}" if s.podcast_intro else raw_script
+    if s.podcast_outro:
+        pt_script = f"{pt_script}\n\n{s.podcast_outro}"
     pt_blog = append_subscribe_cta(
         assemble_blog_markdown(
             title, blog_body, sources, topic_id, sources_heading=s.sources_heading
@@ -250,6 +252,8 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         en_script = (
             f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
         )
+        if s.podcast_outro_en:
+            en_script = f"{en_script}\n\n{s.podcast_outro_en}"
         en_cta = subscribe_cta(s.secondary_language_code)  # on-site blog CTA — untagged
         en_pod_cta = subscribe_cta(s.secondary_language_code, utm=pod_utm)  # show notes — tagged
         en_blog = append_subscribe_cta(

@@ -33,7 +33,8 @@ FORMAT_SPECS: dict[str, str] = {
         "A spoken monologue script for a single host named {author}. ~500-700 words. Natural and "
         "conversational, short sentences, easy to read aloud. Do NOT write an opening greeting or "
         "introduce yourself/the show (a fixed intro is added before your text) — start directly "
-        "with the subject. End with a short sign-off. No stage directions, no speaker labels, no "
+        "with the subject. Do NOT write a closing sign-off or outro (a fixed outro is added after "
+        "your text) — end on the subject. No stage directions, no speaker labels, no "
         "markdown — only the words to be spoken."
     ),
     "newsletter": (
