@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from datetime import date
 
+from boosternews.config import get_settings
 from boosternews.generate import (
     append_subscribe_cta,
     assemble_blog_markdown,
     build_prompt,
     source_block,
+    spoken_subscribe_url,
     strip_code_fences,
     subscribe_cta,
     subscribe_url,
@@ -99,3 +101,27 @@ def test_append_subscribe_cta():
     out = append_subscribe_cta("Body.", "Subscribe: x")
     assert out == "Body.\n\n---\n\nSubscribe: x\n"  # rule-separated block
     assert append_subscribe_cta("Body.", "") == "Body."  # no-op when CTA empty
+
+
+def test_spoken_subscribe_url_strips_scheme_for_narration():
+    # The spoken outro reads the subscribe page aloud: no scheme, no UTM, no trailing slash.
+    assert spoken_subscribe_url("pt-BR") == "localhost/subscribe"
+    assert spoken_subscribe_url("en") == "localhost/en/subscribe"
+
+
+def test_podcast_outro_is_mandatory_and_aligned_to_subscribe_page():
+    get_settings.cache_clear()  # ignore any settings cached by an earlier test
+    s = get_settings()
+    # pt-BR outro sends listeners to the subscribe page (same destination as the show-notes CTA),
+    # with the placeholder filled — the mandatory subscribe/share sign-off is present.
+    pt = s.podcast_outro.format(url=spoken_subscribe_url(s.primary_language_code))
+    assert "{url}" not in pt  # template placeholder filled
+    assert "localhost/subscribe" in pt
+    assert "assine a minha newsletter" in pt.lower()
+    assert "compartilhe" in pt.lower()  # share invitation
+    # English mirror uses the exact wording, under the /en subscribe page.
+    en = s.podcast_outro_en.format(url=spoken_subscribe_url(s.secondary_language_code))
+    assert "{url}" not in en
+    assert "localhost/en/subscribe" in en
+    assert "subscribe to my newsletter" in en.lower()
+    assert "share it with them" in en.lower()
