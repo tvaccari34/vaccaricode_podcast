@@ -122,6 +122,9 @@ services:
         - traefik.http.routers.bn-listmonk-admin.priority=100
         - traefik.http.routers.bn-listmonk-admin.middlewares=bn-lm-auth,bn-sec-headers
         - traefik.http.middlewares.bn-lm-auth.basicauth.users=${LISTMONK_ADMIN_BASICAUTH}
+        # Strip the Authorization header after validating — otherwise Listmonk reads it as a
+        # (bad) API token and returns 403, shadowing the session cookie / login form.
+        - traefik.http.middlewares.bn-lm-auth.basicauth.removeheader=true
 
   # Umami — privacy-friendly, cookieless site analytics (reuses shared Postgres, own `umami` DB).
   # NOTE: no Basic Auth — the tracker (/script.js) and ingest (/api/send) MUST stay public;
