@@ -165,6 +165,23 @@ h2 { margin-top: 2.5rem; }
 
 ul.bare { list-style: none; padding: 0; }
 
+/* ---- blog archive (month-grouped list + TOC sidebar) ---- */
+.archive { display: grid; grid-template-columns: minmax(0, 1fr) 11rem; gap: 2.5rem; align-items: start; }
+.post-groups > .month-group:first-child .month-heading { margin-top: 0; }
+.month-heading { scroll-margin-top: 5rem; } /* clear the sticky header on anchor jump */
+.archive-toc { position: sticky; top: 5rem; max-height: calc(100vh - 6rem); overflow: auto; font-size: .9rem; }
+.archive-toc-title {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--muted); margin: 0 0 .75rem;
+}
+.archive-toc ul.bare li { margin: .45rem 0; }
+.archive-toc a { color: var(--muted); }
+.archive-toc a:hover { color: var(--fg); }
+@media (max-width: 48rem) {
+  .archive { grid-template-columns: 1fr; gap: 0; }
+  .archive-toc { display: none; } /* month headings stay inline in the list */
+}
+
 article :is(h2, h3) { margin-top: 2rem; }
 article :is(h1,h2,h3) { color: var(--fg); }
 article pre {

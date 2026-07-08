@@ -1,0 +1,17 @@
+---
+import { STRINGS } from "../lib/i18n.js";
+// Table-of-contents for the blog archive: one anchor link per month group.
+// Reuses the same `groups` as PostList so the TOC and headings can't drift.
+const { groups, lang } = Astro.props;
+const t = STRINGS[lang];
+---
+{groups.length > 0 && (
+  <aside class="archive-toc">
+    <h2 class="archive-toc-title">{t.archive}</h2>
+    <ul class="bare">
+      {groups.map((g) => (
+        <li><a href={`#${g.anchorId}`}>{g.label}</a></li>
+      ))}
+    </ul>
+  </aside>
+)}
