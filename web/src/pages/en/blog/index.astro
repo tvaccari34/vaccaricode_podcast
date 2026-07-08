@@ -1,14 +1,20 @@
 ---
 import Base from "../../../layouts/Base.astro";
 import PostList from "../../../components/PostList.astro";
+import ArchiveToc from "../../../components/ArchiveToc.astro";
 import { STRINGS } from "../../../lib/i18n.js";
 import { getPublishedPosts } from "../../../lib/db.js";
+import { groupPostsByMonth } from "../../../lib/archive.js";
 const lang = "en";
 const t = STRINGS[lang];
 const posts = await getPublishedPosts(lang);
+const groups = groupPostsByMonth(posts, lang);
 ---
 
 <Base title={t.nav.blog} lang={lang} alt="/blog" description="Posts on software development and AI trends.">
   <h1>{t.nav.blog}</h1>
-  <PostList posts={posts} lang={lang} />
+  <div class="archive">
+    <PostList groups={groups} lang={lang} />
+    <ArchiveToc groups={groups} lang={lang} />
+  </div>
 </Base>
