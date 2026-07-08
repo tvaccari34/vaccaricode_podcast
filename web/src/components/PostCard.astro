@@ -1,0 +1,17 @@
+---
+import { safeMatter } from "../lib/frontmatter.js";
+import { href } from "../lib/i18n.js";
+// A single post entry, shared by the flat list and the month-grouped archive
+// so the two can't drift.
+const { post, lang } = Astro.props;
+function excerpt(body) {
+  const { content } = safeMatter(body);
+  const p = content.trim().split("\n\n").find((x) => x.trim() && !x.startsWith("#")) || "";
+  return p.replace(/[#*`>]/g, "").slice(0, 200);
+}
+---
+<li class="card">
+  <h3><a href={href(lang, `/blog/${post.topic_id}`)}>{post.title}</a></h3>
+  <p class="meta">{new Date(post.updated_at).toLocaleDateString()}</p>
+  <p>{excerpt(post.body)}…</p>
+</li>

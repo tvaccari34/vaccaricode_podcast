@@ -1,14 +1,9 @@
 ---
-import { safeMatter } from "../lib/frontmatter.js";
-import { STRINGS, href } from "../lib/i18n.js";
+import { STRINGS } from "../lib/i18n.js";
+import PostCard from "./PostCard.astro";
 // `groups` (month buckets) → grouped archive listing; otherwise a flat list from `posts`.
 const { posts, groups, lang } = Astro.props;
 const t = STRINGS[lang];
-function excerpt(body) {
-  const { content } = safeMatter(body);
-  const p = content.trim().split("\n\n").find((x) => x.trim() && !x.startsWith("#")) || "";
-  return p.replace(/[#*`>]/g, "").slice(0, 200);
-}
 ---
 {groups ? (
   groups.length === 0 ? (
@@ -20,11 +15,7 @@ function excerpt(body) {
           <h2 id={g.anchorId} class="month-heading">{g.label}</h2>
           <ul class="bare">
             {g.posts.map((p) => (
-              <li class="card">
-                <h3><a href={href(lang, `/blog/${p.topic_id}`)}>{p.title}</a></h3>
-                <p class="meta">{new Date(p.updated_at).toLocaleDateString()}</p>
-                <p>{excerpt(p.body)}…</p>
-              </li>
+              <PostCard post={p} lang={lang} />
             ))}
           </ul>
         </section>
@@ -36,11 +27,7 @@ function excerpt(body) {
     {posts.length === 0 && <p class="muted">{t.noPosts}</p>}
     <ul class="bare">
       {posts.map((p) => (
-        <li class="card">
-          <h3><a href={href(lang, `/blog/${p.topic_id}`)}>{p.title}</a></h3>
-          <p class="meta">{new Date(p.updated_at).toLocaleDateString()}</p>
-          <p>{excerpt(p.body)}…</p>
-        </li>
+        <PostCard post={p} lang={lang} />
       ))}
     </ul>
   </>
