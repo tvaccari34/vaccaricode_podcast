@@ -11,7 +11,7 @@ const posts = await getPublishedPosts(lang);
 const groups = groupPostsByMonth(posts, lang);
 ---
 
-<Base title={t.nav.blog} lang={lang} alt="/en/blog" description="Posts sobre desenvolvimento de software e tendências de IA.">
+<Base title={t.nav.blog} lang={lang} alt="/en/blog" wide description="Posts sobre desenvolvimento de software e tendências de IA.">
   <h1>{t.nav.blog}</h1>
   <div class="archive">
     <PostList groups={groups} lang={lang} />

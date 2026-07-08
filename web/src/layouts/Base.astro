@@ -2,7 +2,7 @@
 import "../styles/global.css";
 import { STRINGS, href } from "../lib/i18n.js";
 
-const { title, description, lang = "pt-BR", alt } = Astro.props;
+const { title, description, lang = "pt-BR", alt, wide = false } = Astro.props;
 const t = STRINGS[lang];
 const siteName = "Vaccari's Code Podcast";
 const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagline}`;
@@ -56,7 +56,7 @@ const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
     <div class="neon-rule"></div>
 
     <main>
-      <div class="wrap">
+      <div class:list={["wrap", { wide }]}>
         <slot />
       </div>
     </main>

@@ -166,6 +166,9 @@ h2 { margin-top: 2.5rem; }
 ul.bare { list-style: none; padding: 0; }
 
 /* ---- blog archive (month-grouped list + TOC sidebar) ---- */
+/* Widen the page wrap by exactly the sidebar (11rem) + gap (2.5rem) so the list
+   column keeps the normal content width and the TOC sits in the added space. */
+.wrap.wide { max-width: calc(var(--maxw) + 11rem + 2.5rem); }
 .archive { display: grid; grid-template-columns: minmax(0, 1fr) 11rem; gap: 2.5rem; align-items: start; }
 .post-groups > .month-group:first-child .month-heading { margin-top: 0; }
 .month-heading { scroll-margin-top: 5rem; } /* clear the sticky header on anchor jump */
@@ -178,6 +181,7 @@ ul.bare { list-style: none; padding: 0; }
 .archive-toc a { color: var(--muted); }
 .archive-toc a:hover { color: var(--fg); }
 @media (max-width: 48rem) {
+  .wrap.wide { max-width: var(--maxw); } /* no sidebar → back to the normal width */
   .archive { grid-template-columns: 1fr; gap: 0; }
   .archive-toc { display: none; } /* month headings stay inline in the list */
 }
