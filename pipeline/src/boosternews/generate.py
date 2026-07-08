@@ -138,6 +138,11 @@ def subscribe_url(language_code: str, *, utm: dict | None = None) -> str:
     return with_utm(url, **utm) if utm else url
 
 
+def spoken_subscribe_url(language_code: str) -> str:
+    """Subscribe page URL without scheme or UTM, for reading aloud in a narration outro."""
+    return subscribe_url(language_code).split("://", 1)[-1].rstrip("/")
+
+
 def subscribe_cta(language_code: str, *, utm: dict | None = None) -> str:
     """Localized subscribe/referral block for a language ("" when disabled)."""
     s = get_settings()
@@ -231,6 +236,9 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     pod_utm = {"source": "podcast", "medium": "podcast", "campaign": f"episode-{topic_id}"}
     pt_pod_cta = subscribe_cta(s.primary_language_code, utm=pod_utm)  # off-site show notes — tagged
     pt_script = f"{s.podcast_intro}\n\n{raw_script}" if s.podcast_intro else raw_script
+    if s.podcast_outro:
+        pt_outro = s.podcast_outro.format(url=spoken_subscribe_url(s.primary_language_code))
+        pt_script = f"{pt_script}\n\n{pt_outro}"
     pt_blog = append_subscribe_cta(
         assemble_blog_markdown(
             title, blog_body, sources, topic_id, sources_heading=s.sources_heading
@@ -250,6 +258,9 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         en_script = (
             f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
         )
+        if s.podcast_outro_en:
+            en_outro = s.podcast_outro_en.format(url=spoken_subscribe_url(s.secondary_language_code))
+            en_script = f"{en_script}\n\n{en_outro}"
         en_cta = subscribe_cta(s.secondary_language_code)  # on-site blog CTA — untagged
         en_pod_cta = subscribe_cta(s.secondary_language_code, utm=pod_utm)  # show notes — tagged
         en_blog = append_subscribe_cta(

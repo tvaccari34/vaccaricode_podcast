@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     podcast_intro: str = (
         "Fala galera! Bem vindo novamente ao Vaccari's Code Podcast. Tiago Vaccari aqui."
     )
+    # Fixed spoken outro appended to every podcast script (the model is told not to add its own).
+    # {url} is filled with the spoken subscribe-page URL (host + path, no scheme) for this language.
+    podcast_outro: str = (
+        "Se esse conteúdo te ajudou, assine a minha newsletter em {url}. Eu "
+        "compartilho ideias sobre tecnologia, software, negócios e como a internet está mudando "
+        "o mundo. E se você acha que esse conteúdo pode ajudar outra pessoa, compartilhe com ela. "
+        "É isso por hoje. Um abraço, e até a próxima."
+    )
     primary_language_code: str = "pt-BR"
     # Secondary language mirror (blog + newsletter + podcast SCRIPT; audio uploaded manually, not
     # auto-narrated). Set secondary_language="" to disable the English version entirely.
@@ -60,6 +68,12 @@ class Settings(BaseSettings):
     secondary_sources_heading: str = "Sources"
     podcast_intro_en: str = (
         "What's up everyone! Welcome back to Vaccari's Code Podcast. Tiago here."
+    )
+    podcast_outro_en: str = (
+        "If this content helped you, subscribe to my newsletter at {url}. I share "
+        "ideas about technology, software, business, and how the internet is changing the world. "
+        "And if you think this content could help someone else, share it with them. "
+        "That is all for today. Cheers, and until next time."
     )
     # Subscribe CTA: a referral block appended to generated blog posts + episode show notes,
     # pointing readers/listeners at the newsletter. Disable with subscribe_cta_enabled=false.
