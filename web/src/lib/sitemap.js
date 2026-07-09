@@ -1,10 +1,15 @@
 // Build-time sitemap for the static site. Regenerated on every `astro build`
 // (i.e. every rebuild), so newly published posts/episodes appear automatically
 // with no separate cron — the same way the RSS/podcast feeds work.
+//
+// Each page that exists in both locales carries reciprocal, self-referential
+// hreflang alternates (PT ⇄ EN + x-default → PT) per Google's guidelines;
+// content that exists in only one language gets no alternates.
 import { getPublishedEpisodes, getPublishedPosts } from "./db.js";
 import { STRINGS } from "./i18n.js";
 
 const LANGS = ["pt-BR", "en"];
+const DEFAULT_LANG = "pt-BR"; // x-default target
 
 const esc = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -13,15 +18,33 @@ function rootUrl(siteUrl) {
   return (siteUrl || "http://localhost/").toString().replace(/\/$/, "");
 }
 
-// One <url> entry. lastmod (W3C / ISO 8601) is omitted when we have no date.
-function urlEntry(loc, lastmod) {
-  const mod = lastmod ? `<lastmod>${new Date(lastmod).toISOString()}</lastmod>` : "";
-  return `<url><loc>${esc(loc)}</loc>${mod}</url>`;
-}
-
 function newest(...dates) {
   const ts = dates.filter(Boolean).map((d) => new Date(d).getTime());
   return ts.length ? new Date(Math.max(...ts)) : undefined;
+}
+
+/**
+ * Emit one <url> per language for a logical page.
+ * @param {Object<string,{href:string, lastmod?:*}>} perLang - lang → { href, lastmod }
+ * When more than one language is present, every emitted <url> gets the same set
+ * of alternate links (reciprocal + self-referential) plus an x-default.
+ */
+function pageEntries(perLang) {
+  const langs = Object.keys(perLang);
+  let alts = "";
+  if (langs.length > 1) {
+    const links = langs.map(
+      (l) => `<xhtml:link rel="alternate" hreflang="${STRINGS[l].htmlLang}" href="${esc(perLang[l].href)}"/>`
+    );
+    const def = perLang[DEFAULT_LANG] || perLang[langs[0]];
+    links.push(`<xhtml:link rel="alternate" hreflang="x-default" href="${esc(def.href)}"/>`);
+    alts = links.join("");
+  }
+  return langs.map((l) => {
+    const { href, lastmod } = perLang[l];
+    const mod = lastmod ? `<lastmod>${new Date(lastmod).toISOString()}</lastmod>` : "";
+    return `<url><loc>${esc(href)}</loc>${mod}${alts}</url>`;
+  });
 }
 
 /**
@@ -31,29 +54,50 @@ function newest(...dates) {
  */
 export async function sitemapXml(siteUrl) {
   const root = rootUrl(siteUrl);
+  const base = Object.fromEntries(LANGS.map((l) => [l, root + STRINGS[l].base])); // "" / "/en"
+
+  // Fetch both locales up front so we can pair alternates by topic_id.
+  const posts = Object.fromEntries(await Promise.all(LANGS.map(async (l) => [l, await getPublishedPosts(l)])));
+  const episodes = Object.fromEntries(await Promise.all(LANGS.map(async (l) => [l, await getPublishedEpisodes(l)])));
+
   const entries = [];
-  for (const lang of LANGS) {
-    const base = root + STRINGS[lang].base; // "" for pt-BR, "/en" for en
-    // Both arrive sorted updated_at DESC, so [0] is the freshest.
-    const posts = await getPublishedPosts(lang);
-    const episodes = await getPublishedEpisodes(lang);
-    const newestPost = posts[0]?.updated_at;
-    const newestEpisode = episodes[0]?.updated_at;
 
-    // Static pages — listing pages carry their freshest child's date.
-    entries.push(urlEntry(`${base}/`, newest(newestPost, newestEpisode)));
-    entries.push(urlEntry(`${base}/blog`, newestPost));
-    entries.push(urlEntry(`${base}/podcast`, newestEpisode));
-    entries.push(urlEntry(`${base}/about`));
-    entries.push(urlEntry(`${base}/subscribe`));
+  // ---- static pages (always exist in both locales) ----
+  const staticPage = (suffix, lastmodByLang = {}) =>
+    pageEntries(Object.fromEntries(LANGS.map((l) => [l, { href: base[l] + suffix, lastmod: lastmodByLang[l] }])));
 
-    // Per-post and per-episode pages.
-    for (const p of posts) entries.push(urlEntry(`${base}/blog/${p.topic_id}`, p.updated_at));
-    for (const e of episodes) entries.push(urlEntry(`${base}/podcast/${e.topic_id}`, e.updated_at));
-  }
+  const newestPost = Object.fromEntries(LANGS.map((l) => [l, posts[l][0]?.updated_at]));
+  const newestEp = Object.fromEntries(LANGS.map((l) => [l, episodes[l][0]?.updated_at]));
+  const newestAny = Object.fromEntries(LANGS.map((l) => [l, newest(newestPost[l], newestEp[l])]));
+
+  entries.push(...staticPage("/", newestAny));
+  entries.push(...staticPage("/blog", newestPost));
+  entries.push(...staticPage("/podcast", newestEp));
+  entries.push(...staticPage("/about"));
+  entries.push(...staticPage("/subscribe"));
+
+  // ---- content pages, paired across locales by topic_id ----
+  const contentEntries = (rows, seg) => {
+    const byId = Object.fromEntries(LANGS.map((l) => [l, new Map(rows[l].map((r) => [r.topic_id, r]))]));
+    for (const [l, other] of [["pt-BR", "en"], ["en", "pt-BR"]]) {
+      for (const r of rows[l]) {
+        // A row whose id also exists in the other locale is emitted only once,
+        // as part of the primary (pt-BR) pass, with both alternates.
+        if (l !== DEFAULT_LANG && byId[other].has(r.topic_id)) continue;
+        const perLang = { [l]: { href: `${base[l]}/${seg}/${r.topic_id}`, lastmod: r.updated_at } };
+        const twin = byId[other].get(r.topic_id);
+        if (twin) perLang[other] = { href: `${base[other]}/${seg}/${r.topic_id}`, lastmod: twin.updated_at };
+        entries.push(...pageEntries(perLang));
+      }
+    }
+  };
+  contentEntries(posts, "blog");
+  contentEntries(episodes, "podcast");
+
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"` +
+    ` xmlns:xhtml="http://www.w3.org/1999/xhtml">` +
     entries.join("") +
     `</urlset>`
   );
