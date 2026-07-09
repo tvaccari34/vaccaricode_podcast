@@ -7,6 +7,7 @@
 // content that exists in only one language gets no alternates.
 import { getPublishedEpisodes, getPublishedPosts } from "./db.js";
 import { STRINGS } from "./i18n.js";
+import { canonicalUrl } from "./seo.js";
 
 const LANGS = ["pt-BR", "en"];
 const DEFAULT_LANG = "pt-BR"; // x-default target
@@ -63,8 +64,12 @@ export async function sitemapXml(siteUrl) {
   const entries = [];
 
   // ---- static pages (always exist in both locales) ----
+  // canonicalUrl() drops trailing slashes (except root) so these match the
+  // <link rel="canonical"> / hreflang tags emitted by Base.astro.
   const staticPage = (suffix, lastmodByLang = {}) =>
-    pageEntries(Object.fromEntries(LANGS.map((l) => [l, { href: base[l] + suffix, lastmod: lastmodByLang[l] }])));
+    pageEntries(
+      Object.fromEntries(LANGS.map((l) => [l, { href: canonicalUrl(base[l] + suffix, siteUrl), lastmod: lastmodByLang[l] }]))
+    );
 
   const newestPost = Object.fromEntries(LANGS.map((l) => [l, posts[l][0]?.updated_at]));
   const newestEp = Object.fromEntries(LANGS.map((l) => [l, episodes[l][0]?.updated_at]));
@@ -84,9 +89,9 @@ export async function sitemapXml(siteUrl) {
         // A row whose id also exists in the other locale is emitted only once,
         // as part of the primary (pt-BR) pass, with both alternates.
         if (l !== DEFAULT_LANG && byId[other].has(r.topic_id)) continue;
-        const perLang = { [l]: { href: `${base[l]}/${seg}/${r.topic_id}`, lastmod: r.updated_at } };
+        const perLang = { [l]: { href: canonicalUrl(`${base[l]}/${seg}/${r.topic_id}`, siteUrl), lastmod: r.updated_at } };
         const twin = byId[other].get(r.topic_id);
-        if (twin) perLang[other] = { href: `${base[other]}/${seg}/${r.topic_id}`, lastmod: twin.updated_at };
+        if (twin) perLang[other] = { href: canonicalUrl(`${base[other]}/${seg}/${r.topic_id}`, siteUrl), lastmod: twin.updated_at };
         entries.push(...pageEntries(perLang));
       }
     }

@@ -11,6 +11,8 @@ export const STRINGS = {
     otherLabel: "EN",
     selfLabel: "PT",
     tagline: "tendências em TI e dev",
+    siteDescription:
+      "Blog, newsletter e podcast automatizados sobre tendências em desenvolvimento de software e IA, por Tiago Vaccari.",
     nav: { blog: "Blog", podcast: "Podcast", about: "Sobre", subscribe: "Assinar" },
     heroTitle: "Tendências em software e IA, no piloto automático",
     heroBody:
@@ -40,6 +42,8 @@ export const STRINGS = {
     otherLabel: "PT",
     selfLabel: "EN",
     tagline: "IT & dev trends",
+    siteDescription:
+      "Automated blog, newsletter, and podcast on trends in software development and AI, by Tiago Vaccari.",
     nav: { blog: "Blog", podcast: "Podcast", about: "About", subscribe: "Subscribe" },
     heroTitle: "Trends in software & AI, on autopilot",
     heroBody:
