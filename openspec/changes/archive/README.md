@@ -25,7 +25,7 @@ git mv openspec/changes/<name> openspec/changes/archive/$(date +%F)-<name>
 
 ## Note on canonical specs
 
-This project does not currently maintain a synced `openspec/specs/` tree — the
-per-change `specs/` deltas are the source of truth. If a canonical spec tree is
-introduced later, archiving should also fold each change's delta into it
-(`openspec-sync-specs`) before the move.
+The canonical spec tree lives at [`openspec/specs/`](../../specs/) — the current
+source of truth per capability. When archiving a change, **fold its `specs/`
+deltas into that tree first** (`ADDED` appends, `MODIFIED` replaces in place,
+`REMOVED` deletes), then move the change here. See `openspec/specs/README.md`.
