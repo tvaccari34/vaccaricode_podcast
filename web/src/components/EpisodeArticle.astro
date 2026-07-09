@@ -5,7 +5,7 @@ const { episode, lang } = Astro.props;
 const t = STRINGS[lang];
 const notesHtml = episode.show_notes ? renderMarkdown(episode.show_notes) : "";
 ---
-<article>
+<article data-pagefind-body data-pagefind-meta="type:podcast">
   <h1>{episode.title}</h1>
   <p class="meta">{new Date(episode.updated_at).toLocaleDateString()}</p>
   {episode.audio_url ? (

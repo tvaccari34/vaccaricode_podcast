@@ -14,6 +14,8 @@ const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagl
 // Where the PT/EN toggle points: the equivalent page if given, else the other language's home.
 const otherHome = STRINGS[t.other].base || "/";
 const toggleHref = alt || otherHome;
+// Strings the client-side search script needs (labels used in attributes stay inline below).
+const searchStrings = { empty: t.searchEmpty, error: t.searchError, blog: t.nav.blog, podcast: t.nav.podcast };
 // Umami analytics: emitted only when configured (dev/local builds stay clean; unset = kill switch).
 const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC;
 const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
@@ -122,6 +124,9 @@ const articleLd = ogType === "article" ? {
           <a href={href(lang, "/podcast")}>{t.nav.podcast}</a>
           <a href={href(lang, "/about")}>{t.nav.about}</a>
           <a href={href(lang, "/subscribe")}>{t.nav.subscribe}</a>
+          <button class="nav-search" id="search-open" aria-label={t.searchLabel}>
+            <span aria-hidden="true">🔍</span><span class="nav-search-text">{t.searchLabel}</span>
+          </button>
           <a class="langswitch" href={toggleHref} title="Change language">{t.selfLabel}</a>
           <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">◐</button>
         </nav>
@@ -157,6 +162,93 @@ const articleLd = ogType === "article" ? {
         document.documentElement.setAttribute("data-theme", next);
         localStorage.setItem("theme", next);
       });
+    </script>
+
+    <div id="search-modal" class="search-modal" hidden>
+      <div class="search-backdrop" data-search-close></div>
+      <div class="search-panel" role="dialog" aria-modal="true" aria-label={t.searchLabel}>
+        <div class="search-inputrow">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+                 placeholder={t.searchPlaceholder} aria-label={t.searchLabel} />
+          <button class="search-close" data-search-close aria-label={t.searchClose}>Esc</button>
+        </div>
+        <div id="search-results" class="search-results" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <script define:vars={{ S: searchStrings }}>
+      (function () {
+        const modal = document.getElementById("search-modal");
+        const input = document.getElementById("search-input");
+        const results = document.getElementById("search-results");
+        const openBtn = document.getElementById("search-open");
+        if (!modal || !input || !results) return;
+        let pagefind = null, loaded = false, lastFocus = null, debounce;
+
+        async function ensurePagefind() {
+          if (loaded) return pagefind;
+          loaded = true;
+          try {
+            // The /pagefind/ bundle is generated after `astro build`, so it must not be
+            // resolved by Vite at build time — load it at runtime.
+            pagefind = await import(/* @vite-ignore */ "/pagefind/pagefind.js");
+            await pagefind.init();
+          } catch (e) {
+            pagefind = null;
+          }
+          return pagefind;
+        }
+        function esc(s) { const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+        function typeLabel(t) { return t === "podcast" ? S.podcast : S.blog; }
+
+        function open() {
+          lastFocus = document.activeElement;
+          modal.hidden = false;
+          document.body.style.overflow = "hidden";
+          input.focus();
+          ensurePagefind();
+        }
+        function close() {
+          modal.hidden = true;
+          document.body.style.overflow = "";
+          input.value = ""; results.innerHTML = "";
+          if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+
+        async function run(q) {
+          const pf = await ensurePagefind();
+          if (!pf) { results.innerHTML = '<p class="search-msg">' + esc(S.error) + "</p>"; return; }
+          if (!q.trim()) { results.innerHTML = ""; return; }
+          const search = await pf.search(q);
+          const items = await Promise.all(search.results.slice(0, 8).map((r) => r.data()));
+          if (!items.length) { results.innerHTML = '<p class="search-msg">' + esc(S.empty) + "</p>"; return; }
+          results.innerHTML = items.map(function (d) {
+            const type = (d.meta && d.meta.type) || "blog";
+            const title = (d.meta && d.meta.title) || d.url;
+            return '<a class="search-hit" href="' + d.url + '">' +
+              '<span class="search-hit-tag" data-type="' + esc(type) + '">' + esc(typeLabel(type)) + "</span>" +
+              '<span class="search-hit-title">' + esc(title) + "</span>" +
+              '<span class="search-hit-excerpt">' + d.excerpt + "</span>" +
+              "</a>";
+          }).join("");
+        }
+
+        if (openBtn) openBtn.addEventListener("click", open);
+        document.addEventListener("keydown", function (e) {
+          if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+            e.preventDefault(); modal.hidden ? open() : close();
+          } else if (e.key === "Escape" && !modal.hidden) { close(); }
+        });
+        modal.querySelectorAll("[data-search-close]").forEach(function (el) {
+          el.addEventListener("click", close);
+        });
+        input.addEventListener("input", function () {
+          clearTimeout(debounce);
+          const q = input.value;
+          debounce = setTimeout(function () { run(q); }, 180);
+        });
+      })();
     </script>
   </body>
 </html>

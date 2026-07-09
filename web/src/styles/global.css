@@ -224,3 +224,66 @@ form.subscribe button:hover { filter: brightness(1.08); }
   border: 1px solid color-mix(in srgb, var(--cyan) 40%, var(--border));
   border-radius: 999px; padding: .1rem .5rem;
 }
+
+/* ---- search (Pagefind modal) ---- */
+.nav-search {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); font-size: .9rem; padding: .2rem .55rem; cursor: pointer;
+}
+.nav-search:hover { color: var(--fg); border-color: var(--cyan); box-shadow: var(--glow-cyan); }
+@media (max-width: 34rem) { .nav-search-text { display: none; } }
+/* With the search item added, let the header degrade gracefully on narrow
+   screens instead of overflowing horizontally. */
+@media (max-width: 40rem) {
+  header.site .wrap { flex-wrap: wrap; }
+  header.site nav { flex-wrap: wrap; justify-content: flex-end; row-gap: .4rem; }
+}
+
+.search-modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 8vh 1rem 1rem;
+}
+.search-modal[hidden] { display: none; }
+.search-backdrop {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(4px);
+}
+.search-panel {
+  position: relative; width: 100%; max-width: 40rem;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(34,211,238,.15), 0 20px 60px -20px rgba(34,211,238,.4);
+  overflow: hidden;
+}
+.search-inputrow { display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem; border-bottom: 1px solid var(--border); }
+.search-icon { opacity: .7; }
+.search-inputrow input {
+  flex: 1; background: none; border: none; color: var(--fg);
+  font-size: 1.05rem; outline: none;
+}
+.search-close {
+  background: var(--bg-2); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; padding: .1rem .5rem; font-size: .75rem; cursor: pointer;
+}
+.search-close:hover { color: var(--fg); border-color: var(--cyan); }
+.search-results { max-height: 60vh; overflow: auto; padding: .5rem; }
+.search-msg { color: var(--muted); padding: 1rem; margin: 0; }
+.search-hit {
+  display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem;
+  padding: .7rem .8rem; border-radius: 8px; text-decoration: none; color: var(--fg);
+}
+.search-hit:hover { background: var(--card-hover); text-decoration: none; }
+.search-hit-tag {
+  grid-row: 1 / span 2; align-self: start; margin-top: .1rem;
+  font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+  border-radius: 999px; padding: .1rem .5rem; height: fit-content;
+  border: 1px solid color-mix(in srgb, var(--cyan) 40%, var(--border)); color: var(--cyan-soft);
+}
+.search-hit-tag[data-type="podcast"] {
+  border-color: color-mix(in srgb, var(--magenta) 45%, var(--border)); color: var(--magenta-soft);
+}
+.search-hit-title { font-weight: 600; }
+.search-hit-excerpt { color: var(--muted); font-size: .9rem; }
+.search-hit-excerpt mark { background: color-mix(in srgb, var(--cyan) 30%, transparent); color: var(--fg); border-radius: 3px; }

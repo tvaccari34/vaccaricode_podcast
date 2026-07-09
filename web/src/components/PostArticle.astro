@@ -11,7 +11,7 @@ const dateStr = parsed.data.date
   ? new Date(parsed.data.date).toLocaleDateString()
   : new Date(post.updated_at).toLocaleDateString();
 ---
-<article>
+<article data-pagefind-body data-pagefind-meta="type:blog">
   <h1>{title}</h1>
   <p class="meta">{dateStr}</p>
   <div set:html={html} />
