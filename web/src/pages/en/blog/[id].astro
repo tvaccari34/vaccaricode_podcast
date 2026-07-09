@@ -2,6 +2,7 @@
 import Base from "../../../layouts/Base.astro";
 import PostArticle from "../../../components/PostArticle.astro";
 import { getPublishedPosts } from "../../../lib/db.js";
+import { plainExcerpt } from "../../../lib/seo.js";
 
 export async function getStaticPaths() {
   const posts = await getPublishedPosts("en");
@@ -10,8 +11,11 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const lang = "en";
+const description = plainExcerpt(post.body);
+const publishedTime = new Date(post.updated_at).toISOString();
 ---
 
-<Base title={post.title} lang={lang} alt={`/blog/${post.topic_id}`}>
+<Base title={post.title} lang={lang} alt={`/blog/${post.topic_id}`}
+      description={description} ogType="article" articleType="BlogPosting" publishedTime={publishedTime}>
   <PostArticle post={post} lang={lang} />
 </Base>

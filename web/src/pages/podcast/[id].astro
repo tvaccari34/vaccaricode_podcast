@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import EpisodeArticle from "../../components/EpisodeArticle.astro";
 import { getPublishedEpisodes } from "../../lib/db.js";
+import { plainExcerpt } from "../../lib/seo.js";
 
 export async function getStaticPaths() {
   const episodes = await getPublishedEpisodes("pt-BR");
@@ -10,8 +11,11 @@ export async function getStaticPaths() {
 
 const { episode } = Astro.props;
 const lang = "pt-BR";
+const description = plainExcerpt(episode.show_notes);
+const publishedTime = new Date(episode.updated_at).toISOString();
 ---
 
-<Base title={episode.title} lang={lang} alt={`/en/podcast/${episode.topic_id}`}>
+<Base title={episode.title} lang={lang} alt={`/en/podcast/${episode.topic_id}`}
+      description={description} ogType="article" articleType="PodcastEpisode" publishedTime={publishedTime}>
   <EpisodeArticle episode={episode} lang={lang} />
 </Base>
