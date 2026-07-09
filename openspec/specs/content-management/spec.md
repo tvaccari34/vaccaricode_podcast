@@ -1,0 +1,68 @@
+# Content Management
+
+## Purpose
+Managing the lifecycle and state of content items (topics, drafts) across channels in the database.
+
+## Requirements
+
+### Requirement: Content management view
+The dashboard SHALL provide a management view listing all blog posts and podcast episodes, in
+Portuguese and English, showing each item's language and current status regardless of whether it is
+published.
+
+#### Scenario: See all posts and episodes
+- **WHEN** the owner opens the management view
+- **THEN** they see every blog post and every episode, grouped by language, each with its status
+  (e.g. pending, approved, published) — including both automated and manually authored content
+
+### Requirement: Publish and unpublish an item
+The owner SHALL be able to publish a specific post or episode, and to unpublish a published one so
+it is removed from the public site and feeds.
+
+#### Scenario: Unpublish a live post
+- **WHEN** the owner unpublishes a published blog post
+- **THEN** the post is no longer served on the site or RSS feed after the next site rebuild, while
+  remaining stored and editable
+
+#### Scenario: Publish an item directly
+- **WHEN** the owner publishes a specific post or episode from the management view
+- **THEN** that item becomes published and is served on the site/feed after the next rebuild
+
+### Requirement: Edit a post or episode
+The owner SHALL be able to edit a post's title and body, and an episode's title, script, and show
+notes, from the management view.
+
+#### Scenario: Edit a published post's text
+- **WHEN** the owner edits the body of a published post and saves
+- **THEN** the updated text is shown on the live site after the next rebuild, and the post stays
+  published
+
+### Requirement: Regenerate episode audio
+The owner SHALL be able to regenerate an episode's audio from the management view — re-narrate it
+(pt-BR home worker) or upload a new MP3.
+
+#### Scenario: Re-narrate from the management view
+- **WHEN** the owner triggers re-narration for an episode
+- **THEN** a new narration job is queued and the episode's audio is replaced when the worker
+  completes, keeping a published episode live
+
+### Requirement: Delete a post or episode
+The owner SHALL be able to delete a post or an episode; deleting an episode SHALL also remove its
+stored audio object(s).
+
+#### Scenario: Delete an episode
+- **WHEN** the owner deletes an episode
+- **THEN** the episode is removed from the site/feed after the next rebuild and its stored audio
+  object(s) are purged from object storage
+
+#### Scenario: Delete does not affect sibling content
+- **WHEN** the owner deletes one blog post that shares a topic with an episode or the other-language
+  post
+- **THEN** only that post is removed and the sibling content is left intact
+
+### Requirement: Destructive actions are confirmed
+The system SHALL require an explicit confirmation before deleting or unpublishing content.
+
+#### Scenario: Confirm before delete
+- **WHEN** the owner clicks delete on a post or episode
+- **THEN** they must confirm the action before it is carried out
