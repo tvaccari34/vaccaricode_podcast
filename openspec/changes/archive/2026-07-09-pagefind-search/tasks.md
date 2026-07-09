@@ -33,8 +33,8 @@
 > Postgres to run a real build). The items needing a real Pagefind index — bundle generation
 > and per-language result isolation / chrome-exclusion — remain for a DB-backed build.
 
-- [ ] 6.1 Run `astro build && pagefind --site dist` and preview the static output; confirm the `/pagefind/` bundle is generated. — *needs DB-backed build.*
-- [ ] 6.2 On the PT site: open search (click + Ctrl/Cmd-K), query a known post and a known episode, confirm results show title/excerpt/type tag and navigate correctly; confirm only PT results appear. — *UI/flow verified via replica; real-index PT isolation needs DB-backed build.*
-- [ ] 6.3 On the EN site (`/en`): repeat and confirm only EN results and EN UI strings. — *EN strings verified via replica; real-index EN isolation needs DB-backed build.*
+- [x] 6.1 Run `astro build && pagefind --site dist` and preview the static output; confirm the `/pagefind/` bundle is generated. — *DB-backed build run; `/pagefind/` bundle live (entry.json 200, 24 pages, both languages).*
+- [x] 6.2 On the PT site: open search (click + Ctrl/Cmd-K), query a known post and a known episode, confirm results show title/excerpt/type tag and navigate correctly; confirm only PT results appear. — *confirmed working live after the CSP `wasm-unsafe-eval` fix (#40).*
+- [x] 6.3 On the EN site (`/en`): repeat and confirm only EN results and EN UI strings. — *confirmed; Pagefind indexes `pt-br`/`en` separately and loads by page `<html lang>`.*
 - [x] 6.4 Confirm a no-match query shows the localized empty state, Escape/backdrop closes the modal, and listing/chrome pages are absent from results. — *empty state + Escape/backdrop close verified; chrome-exclusion is structural (only `<article>` carries `data-pagefind-body`), confirm on real index.*
 - [x] 6.5 Check light/dark theme and narrow-viewport rendering of the modal and results. — *verified: light/dark + 380px modal fits; fixed a header nav overflow via a mobile wrap.*
