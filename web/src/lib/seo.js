@@ -11,14 +11,16 @@ export const DEFAULT_OG_IMAGE = "/cover-art-512.png";
 export const OG_LOCALE = { "pt-BR": "pt_BR", en: "en_US" };
 
 /**
- * Absolute canonical URL for a path (or full URL), with any trailing slash
- * removed except on the root — matching the site's no-trailing-slash internal
- * links so canonical / hreflang / sitemap all agree.
+ * Absolute canonical URL for a path (or full URL). Directory routes are served
+ * as `index.html`, so nginx 301s the no-slash form to the trailing-slash one;
+ * we therefore canonicalize to the trailing-slash form (the 200 response) so
+ * canonical / hreflang / sitemap / og:url never point at a redirect. Paths with
+ * a file extension (e.g. /rss.xml) are left as-is.
  */
 export function canonicalUrl(pathOrUrl, site) {
-  let p = (pathOrUrl ?? "/").toString();
-  if (p.length > 1) p = p.replace(/\/+$/, "");
-  return new URL(p || "/", site).href;
+  const u = new URL((pathOrUrl ?? "/").toString(), site);
+  if (!u.pathname.endsWith("/") && !/\.[^/]+$/.test(u.pathname)) u.pathname += "/";
+  return u.href;
 }
 
 /**
