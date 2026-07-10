@@ -13,4 +13,4 @@
 ## 3. Verification
 
 - [x] 3.1 Render the template with representative data and confirm valid HTML: needs-action tables first, published collapsed, every item present, actions unchanged.
-- [ ] 3.2 Rebuild the pipeline image and load `/manage` on the live dashboard: confirm the separation, language toggle, and title search all work and all items remain reachable.
+- [x] 3.2 Rebuild the pipeline image and load `/manage` on the live dashboard: confirm the separation, language toggle, and title search all work and all items remain reachable.
