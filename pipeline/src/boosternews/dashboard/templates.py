@@ -257,57 +257,122 @@ MANAGE = """
   a { color: inherit; }
   button { border: none; border-radius: 6px; padding: .3rem .6rem; cursor: pointer; color: #fff; font-weight: 600; font-size: .82em; }
   .go { background: #16a34a; } .warn { background: #d97706; } .danger { background: #dc2626; } .rebuild { background: #2563eb; padding: .45rem .9rem; }
+  h3.grp { margin: 1rem 0 .3rem; font-size: .92rem; color: #777; }
+  .filterbar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin: .6rem 0 1.2rem; }
+  .langtoggle { display: inline-flex; gap: .25rem; }
+  .langtoggle button { background: #8882; color: inherit; border: 1px solid #8884; }
+  .langtoggle button.active { background: #2563eb; color: #fff; }
+  #titlefilter { padding: .38rem .6rem; border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit; min-width: 15rem; }
+  details.pubwrap { margin: .2rem 0 1rem; }
+  details.pubwrap > summary { cursor: pointer; padding: .45rem 0; font-weight: 600; color: #2563eb; }
 </style></head><body>
   <p><a href="/">← back to review queue</a></p>
   <h1>Manage content</h1>
   <form method="post" action="/manage/rebuild"><button class="rebuild">🔄 Rebuild site now</button></form>
   <p class="muted">Publish, unpublish, edit, replace audio, or delete. Changes appear on the live site within ~1 minute (a rebuild is queued automatically). Deleting is permanent.</p>
 
-  <h2>Posts <span class="muted">({{ posts|length }})</span></h2>
-  <table>
-    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Actions</th></tr>
-    {% for p in posts %}
-    <tr>
-      <td>{{ p.language }}</td>
-      <td>{{ p.title or '(untitled)' }} {% if p.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
-      <td><span class="badge {{ p.status }}">{{ p.status }}</span></td>
-      <td class="actions">
-        <a href="/manage/post/{{ p.id }}/edit">edit</a>
-        {% if p.status == 'published' %}
-        <form method="post" action="/manage/post/{{ p.id }}/unpublish" onsubmit="return confirm('Unpublish this post?')"><button class="warn">unpublish</button></form>
-        {% else %}
-        <form method="post" action="/manage/post/{{ p.id }}/publish"><button class="go">publish</button></form>
-        {% endif %}
-        <form method="post" action="/manage/post/{{ p.id }}/delete" onsubmit="return confirm('Delete this post permanently?')"><button class="danger">delete</button></form>
-      </td>
-    </tr>
-    {% endfor %}
-    {% if not posts %}<tr><td colspan="4" class="muted">No posts yet.</td></tr>{% endif %}
-  </table>
+  <div class="filterbar">
+    <div class="langtoggle" id="langtoggle">
+      <button type="button" data-lang="all" class="active">All</button>
+      <button type="button" data-lang="pt-BR">PT</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+    <input type="search" id="titlefilter" placeholder="🔍 filter by title…" autocomplete="off" />
+  </div>
 
-  <h2>Episodes <span class="muted">({{ episodes|length }})</span></h2>
-  <table>
-    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Audio</th><th>Actions</th></tr>
-    {% for e in episodes %}
-    <tr>
-      <td>{{ e.language }}</td>
-      <td>{{ e.title }} {% if e.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
-      <td><span class="badge {{ e.status }}">{{ e.status }}</span></td>
-      <td>{% if e.audio_url %}<a href="{{ e.audio_url }}">▶{% if e.duration %} {{ e.duration }}s{% endif %}</a>{% else %}—{% endif %}</td>
-      <td class="actions">
-        {% if e.status == 'published' %}
-        <form method="post" action="/manage/episode/{{ e.id }}/unpublish" onsubmit="return confirm('Unpublish this episode?')"><button class="warn">unpublish</button></form>
-        {% else %}
-        <form method="post" action="/manage/episode/{{ e.id }}/publish"><button class="go">publish</button></form>
-        {% endif %}
-        <form method="post" action="/episode/{{ e.id }}/audio" enctype="multipart/form-data"><input type="file" name="audio" accept="audio/*" required /><button class="go">upload audio</button></form>
-        <form method="post" action="/manage/episode/{{ e.id }}/delete" onsubmit="return confirm('Delete this episode and its audio permanently?')"><button class="danger">delete</button></form>
-      </td>
-    </tr>
-    {% endfor %}
-    {% if not episodes %}<tr><td colspan="5" class="muted">No episodes yet.</td></tr>{% endif %}
+  {% macro post_row(p) %}
+  <tr data-lang="{{ p.language }}" data-title="{{ (p.title or '')|lower }}">
+    <td>{{ p.language }}</td>
+    <td>{{ p.title or '(untitled)' }} {% if p.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
+    <td><span class="badge {{ p.status }}">{{ p.status }}</span></td>
+    <td class="actions">
+      <a href="/manage/post/{{ p.id }}/edit">edit</a>
+      {% if p.status == 'published' %}
+      <form method="post" action="/manage/post/{{ p.id }}/unpublish" onsubmit="return confirm('Unpublish this post?')"><button class="warn">unpublish</button></form>
+      {% else %}
+      <form method="post" action="/manage/post/{{ p.id }}/publish"><button class="go">publish</button></form>
+      {% endif %}
+      <form method="post" action="/manage/post/{{ p.id }}/delete" onsubmit="return confirm('Delete this post permanently?')"><button class="danger">delete</button></form>
+    </td>
+  </tr>
+  {% endmacro %}
+  {% macro episode_row(e) %}
+  <tr data-lang="{{ e.language }}" data-title="{{ (e.title or '')|lower }}">
+    <td>{{ e.language }}</td>
+    <td>{{ e.title }} {% if e.origin == 'manual' %}<span class="badge">manual</span>{% endif %}</td>
+    <td><span class="badge {{ e.status }}">{{ e.status }}</span></td>
+    <td>{% if e.audio_url %}<a href="{{ e.audio_url }}">▶{% if e.duration %} {{ e.duration }}s{% endif %}</a>{% else %}—{% endif %}</td>
+    <td class="actions">
+      {% if e.status == 'published' %}
+      <form method="post" action="/manage/episode/{{ e.id }}/unpublish" onsubmit="return confirm('Unpublish this episode?')"><button class="warn">unpublish</button></form>
+      {% else %}
+      <form method="post" action="/manage/episode/{{ e.id }}/publish"><button class="go">publish</button></form>
+      {% endif %}
+      <form method="post" action="/episode/{{ e.id }}/audio" enctype="multipart/form-data"><input type="file" name="audio" accept="audio/*" required /><button class="go">upload audio</button></form>
+      <form method="post" action="/manage/episode/{{ e.id }}/delete" onsubmit="return confirm('Delete this episode and its audio permanently?')"><button class="danger">delete</button></form>
+    </td>
+  </tr>
+  {% endmacro %}
+
+  {% set act_posts = posts|rejectattr('status', 'equalto', 'published')|list %}
+  {% set pub_posts = posts|selectattr('status', 'equalto', 'published')|list %}
+  <h2>Posts <span class="muted">({{ posts|length }})</span></h2>
+  <h3 class="grp">Needs action <span class="muted">({{ act_posts|length }})</span></h3>
+  <table class="mtable">
+    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Actions</th></tr>
+    {% for p in act_posts %}{{ post_row(p) }}{% endfor %}
+    {% if not act_posts %}<tr class="noitems"><td colspan="4" class="muted">Nothing awaiting action.</td></tr>{% endif %}
   </table>
+  <details class="pubwrap">
+    <summary>Published <span class="muted">({{ pub_posts|length }})</span></summary>
+    <table class="mtable">
+      <tr><th>Lang</th><th>Title</th><th>Status</th><th>Actions</th></tr>
+      {% for p in pub_posts %}{{ post_row(p) }}{% endfor %}
+      {% if not pub_posts %}<tr class="noitems"><td colspan="4" class="muted">No published posts.</td></tr>{% endif %}
+    </table>
+  </details>
+
+  {% set act_eps = episodes|rejectattr('status', 'equalto', 'published')|list %}
+  {% set pub_eps = episodes|selectattr('status', 'equalto', 'published')|list %}
+  <h2>Episodes <span class="muted">({{ episodes|length }})</span></h2>
+  <h3 class="grp">Needs action <span class="muted">({{ act_eps|length }})</span></h3>
+  <table class="mtable">
+    <tr><th>Lang</th><th>Title</th><th>Status</th><th>Audio</th><th>Actions</th></tr>
+    {% for e in act_eps %}{{ episode_row(e) }}{% endfor %}
+    {% if not act_eps %}<tr class="noitems"><td colspan="5" class="muted">Nothing awaiting action.</td></tr>{% endif %}
+  </table>
+  <details class="pubwrap">
+    <summary>Published <span class="muted">({{ pub_eps|length }})</span></summary>
+    <table class="mtable">
+      <tr><th>Lang</th><th>Title</th><th>Status</th><th>Audio</th><th>Actions</th></tr>
+      {% for e in pub_eps %}{{ episode_row(e) }}{% endfor %}
+      {% if not pub_eps %}<tr class="noitems"><td colspan="5" class="muted">No published episodes.</td></tr>{% endif %}
+    </table>
+  </details>
   <p class="muted">To edit an episode's script or re-narrate the {{ primary }} audio, use the “Episodes — edit script &amp; re-narrate” section on the <a href="/">review queue page</a>.</p>
+
+  <script>
+  (function () {
+    var lang = "all", q = "";
+    var toggle = document.getElementById("langtoggle");
+    var search = document.getElementById("titlefilter");
+    function apply() {
+      document.querySelectorAll("tr[data-lang]").forEach(function (tr) {
+        var okL = lang === "all" || tr.getAttribute("data-lang") === lang;
+        var okQ = !q || (tr.getAttribute("data-title") || "").indexOf(q) !== -1;
+        tr.style.display = (okL && okQ) ? "" : "none";
+      });
+      if (q) document.querySelectorAll("details.pubwrap").forEach(function (d) { d.open = true; });
+    }
+    toggle.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button[data-lang]"); if (!b) return;
+      lang = b.getAttribute("data-lang");
+      toggle.querySelectorAll("button").forEach(function (x) { x.classList.toggle("active", x === b); });
+      apply();
+    });
+    search.addEventListener("input", function () { q = search.value.trim().toLowerCase(); apply(); });
+  })();
+  </script>
 </body></html>
 """
 
