@@ -1,0 +1,19 @@
+---
+import { STRINGS, href } from "../lib/i18n.js";
+import { getEpisodeByTopic } from "../lib/db.js";
+import { FEATURED_TOPIC_ID } from "../lib/featured.js";
+import { plainExcerpt } from "../lib/seo.js";
+// "Start here" card pinning the intro episode above a listing. Renders nothing
+// when no featured episode exists for this language (or the pin is disabled).
+const { lang } = Astro.props;
+const t = STRINGS[lang];
+const ep = FEATURED_TOPIC_ID ? await getEpisodeByTopic(FEATURED_TOPIC_ID, lang) : null;
+const blurb = ep ? plainExcerpt(ep.show_notes, 150) : "";
+---
+{ep && (
+  <a class="featured" href={href(lang, `/podcast/${ep.topic_id}`)}>
+    <span class="featured-tag">▶ {t.startHere}</span>
+    <span class="featured-title">{ep.title}</span>
+    {blurb && <span class="featured-desc">{blurb}</span>}
+  </a>
+)}

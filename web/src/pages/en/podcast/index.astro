@@ -1,15 +1,18 @@
 ---
 import Base from "../../../layouts/Base.astro";
 import EpisodeList from "../../../components/EpisodeList.astro";
+import FeaturedIntro from "../../../components/FeaturedIntro.astro";
 import { STRINGS } from "../../../lib/i18n.js";
 import { getPublishedEpisodes } from "../../../lib/db.js";
+import { FEATURED_TOPIC_ID } from "../../../lib/featured.js";
 const lang = "en";
 const t = STRINGS[lang];
-const episodes = await getPublishedEpisodes(lang);
+const episodes = (await getPublishedEpisodes(lang)).filter((e) => e.topic_id !== FEATURED_TOPIC_ID);
 ---
 
 <Base title={t.nav.podcast} lang={lang} alt="/podcast" description="Narrated episodes on software and AI trends.">
   <h1>{t.nav.podcast}</h1>
   <p class="muted">{t.podcastIntro}</p>
+  <FeaturedIntro lang={lang} />
   <EpisodeList episodes={episodes} lang={lang} />
 </Base>

@@ -33,3 +33,16 @@ export async function getPublishedEpisodes(language = "pt-BR", { withAudioOnly =
   );
   return rows;
 }
+
+/** One published episode by topic id for a language, or null (used by the pinned intro card). */
+export async function getEpisodeByTopic(topicId, language = "pt-BR") {
+  if (!topicId) return null;
+  const { rows } = await pool.query(
+    `SELECT topic_id, title, show_notes, audio_url, duration_seconds, updated_at
+       FROM episodes
+      WHERE status = 'published' AND language = $1 AND topic_id = $2
+      LIMIT 1`,
+    [language, topicId]
+  );
+  return rows[0] || null;
+}

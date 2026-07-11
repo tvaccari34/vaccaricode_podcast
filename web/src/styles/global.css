@@ -165,6 +165,31 @@ h2 { margin-top: 2.5rem; }
 
 ul.bare { list-style: none; padding: 0; }
 
+/* ---- featured "start here" intro card ---- */
+.featured {
+  display: block; position: relative; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cyan) 45%, var(--border));
+  border-radius: 12px; padding: 1.1rem 1.25rem 1.15rem; margin: 0 0 1.75rem;
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgba(34,211,238,.12), 0 10px 40px -18px rgba(34,211,238,.5);
+}
+.featured::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--brand-grad);
+}
+.featured:hover {
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--cyan) 70%, var(--border));
+  box-shadow: 0 0 0 1px rgba(34,211,238,.25), 0 12px 44px -16px rgba(34,211,238,.6);
+}
+.featured-tag {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 700;
+  color: var(--cyan);
+}
+.featured-title { display: block; font-size: 1.15rem; font-weight: 700; color: var(--fg); margin: .35rem 0 .3rem; }
+.featured-desc { display: block; color: var(--muted); font-size: .92rem; line-height: 1.5; }
+
 /* ---- blog archive (month-grouped list + TOC sidebar) ---- */
 /* Widen the page wrap by exactly the sidebar (11rem) + gap (2.5rem) so the list
    column keeps the normal content width and the TOC sits in the added space. */
