@@ -3,18 +3,21 @@ import Base from "../layouts/Base.astro";
 import Hero from "../components/Hero.astro";
 import PostList from "../components/PostList.astro";
 import EpisodeList from "../components/EpisodeList.astro";
+import FeaturedIntro from "../components/FeaturedIntro.astro";
 import { STRINGS } from "../lib/i18n.js";
 import { getPublishedPosts, getPublishedEpisodes } from "../lib/db.js";
 import { groupPostsByMonth } from "../lib/archive.js";
+import { FEATURED_TOPIC_ID } from "../lib/featured.js";
 const lang = "pt-BR";
 const t = STRINGS[lang];
 const posts = await getPublishedPosts(lang);
 const groups = groupPostsByMonth(posts, lang);
-const episodes = await getPublishedEpisodes(lang);
+const episodes = (await getPublishedEpisodes(lang)).filter((e) => e.topic_id !== FEATURED_TOPIC_ID);
 ---
 
 <Base lang={lang} alt="/en" description="Cobertura automatizada de tendências em desenvolvimento de software, IA e engenharia.">
   <Hero lang={lang} />
+  <FeaturedIntro lang={lang} />
   <h2>{t.latestPosts}</h2>
   <PostList groups={groups} lang={lang} />
   <h2>{t.episodes}</h2>

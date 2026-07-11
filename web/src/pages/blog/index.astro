@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import PostList from "../../components/PostList.astro";
 import ArchiveToc from "../../components/ArchiveToc.astro";
+import FeaturedIntro from "../../components/FeaturedIntro.astro";
 import { STRINGS } from "../../lib/i18n.js";
 import { getPublishedPosts } from "../../lib/db.js";
 import { groupPostsByMonth } from "../../lib/archive.js";
@@ -13,6 +14,7 @@ const groups = groupPostsByMonth(posts, lang);
 
 <Base title={t.nav.blog} lang={lang} alt="/en/blog" wide description="Posts sobre desenvolvimento de software e tendências de IA.">
   <h1>{t.nav.blog}</h1>
+  <FeaturedIntro lang={lang} />
   <div class="archive">
     <PostList groups={groups} lang={lang} />
     <ArchiveToc groups={groups} lang={lang} />
