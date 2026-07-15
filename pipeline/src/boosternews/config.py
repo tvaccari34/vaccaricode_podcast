@@ -48,9 +48,17 @@ class Settings(BaseSettings):
     content_language: str = "Brazilian Portuguese"
     # Heading used for the auto-appended sources section (localized).
     sources_heading: str = "Fontes"
-    # Fixed spoken intro prepended to every podcast script (the model is told not to add its own).
+    # Fixed spoken intro + outro wrapped around every podcast script (the model is told not to add
+    # its own greeting or sign-off). The outro is the newsletter/subscribe call-to-action — it is
+    # the primary list-building lever, so it is spoken on EVERY episode.
     podcast_intro: str = (
-        "Fala galera! Bem vindo novamente ao Vaccari's Code Podcast. Tiago Vaccari aqui."
+        "Fala, galera! Bem-vindos de volta ao Vaccari's Code Podcast. Aqui é o Tiago."
+    )
+    podcast_outro: str = (
+        "Se esse conteúdo te ajudou, assine a minha newsletter em tiagovaccari.com. "
+        "Eu compartilho ideias sobre tecnologia, software, negócios e como a internet está "
+        "mudando o mundo. E se você conhece alguém que possa achar isso útil, compartilhe com "
+        "essa pessoa. É isso por hoje. Um abraço, e até a próxima."
     )
     primary_language_code: str = "pt-BR"
     # Secondary language mirror (blog + newsletter + podcast SCRIPT; audio uploaded manually, not
@@ -59,7 +67,13 @@ class Settings(BaseSettings):
     secondary_language_code: str = "en"
     secondary_sources_heading: str = "Sources"
     podcast_intro_en: str = (
-        "What's up everyone! Welcome back to Vaccari's Code Podcast. Tiago here."
+        "What's up, everyone? Welcome back to Vaccari's Code Podcast. Tiago here."
+    )
+    podcast_outro_en: str = (
+        "If this content helped you, subscribe to my newsletter at tiagovaccari.com. "
+        "I share ideas about technology, software, business, and how the internet is changing "
+        "the world. And if you know someone who might find this useful, please share it with "
+        "them. That's all for today. Cheers, and I'll see you next time."
     )
     # Subscribe CTA: a referral block appended to generated blog posts + episode show notes,
     # pointing readers/listeners at the newsletter. Disable with subscribe_cta_enabled=false.

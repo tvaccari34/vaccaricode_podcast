@@ -154,6 +154,11 @@ def append_subscribe_cta(text: str, cta: str) -> str:
     return f"{text.rstrip()}\n\n---\n\n{cta}\n"
 
 
+def wrap_script(body: str, intro: str, outro: str) -> str:
+    """Wrap a narration script with the fixed spoken intro and outro (either may be empty)."""
+    return "\n\n".join(part.strip() for part in (intro, body, outro) if part and part.strip())
+
+
 # ── Orchestration (DB + model) ──────────────────────────────────────────────
 def localized_title(source_title: str, *, gen=llm_generate) -> str:
     """Rewrite a source headline into a concise title in the configured content language."""
@@ -230,7 +235,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     pt_cta = subscribe_cta(s.primary_language_code)  # on-site blog CTA — untagged
     pod_utm = {"source": "podcast", "medium": "podcast", "campaign": f"episode-{topic_id}"}
     pt_pod_cta = subscribe_cta(s.primary_language_code, utm=pod_utm)  # off-site show notes — tagged
-    pt_script = f"{s.podcast_intro}\n\n{raw_script}" if s.podcast_intro else raw_script
+    pt_script = wrap_script(raw_script, s.podcast_intro, s.podcast_outro)
     pt_blog = append_subscribe_cta(
         assemble_blog_markdown(
             title, blog_body, sources, topic_id, sources_heading=s.sources_heading
@@ -247,9 +252,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
         en_blog_body = translate(blog_body, s.secondary_language, gen=gen)
         en_raw_script = translate(raw_script, s.secondary_language, gen=gen)
         en_blurb = translate(blurb, s.secondary_language, gen=gen)
-        en_script = (
-            f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
-        )
+        en_script = wrap_script(en_raw_script, s.podcast_intro_en, s.podcast_outro_en)
         en_cta = subscribe_cta(s.secondary_language_code)  # on-site blog CTA — untagged
         en_pod_cta = subscribe_cta(s.secondary_language_code, utm=pod_utm)  # show notes — tagged
         en_blog = append_subscribe_cta(
