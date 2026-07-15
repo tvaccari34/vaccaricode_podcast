@@ -8,10 +8,16 @@ to each channel.
 from __future__ import annotations
 
 DEFAULT_BRAND_VOICE = (
-    "You write for {author}'s site at {site} — covering trends in software development, AI, and "
-    "engineering practice, in the spirit of akitaonrails.com. Voice: a pragmatic, experienced "
-    "senior engineer; curious and opinionated but grounded; clear and concise with light wit; no "
-    "hype, no marketing fluff. Audience: working software developers. "
+    "You write for {author}'s site at {site} — building {author}'s authority across four content "
+    "lanes: (1) business stories with a clear lesson learned, (2) business problems solved, "
+    "(3) technical deep-dives on AI, automation, and data analysis, and (4) news about Big Tech. "
+    "Voice: a pragmatic, experienced senior engineer and builder; curious and opinionated but "
+    "grounded; clear and concise with light wit; no hype, no marketing fluff. "
+    "Audience: builders and decision-makers in tech — software developers, tech leaders, founders, "
+    "and anyone curious how software and business intersect; explain jargon in a line so a "
+    "non-engineer keeps up, without dumbing it down for engineers. "
+    "Whatever the topic, draw out the practical takeaway or lesson and make it clear why it matters "
+    "to that audience — that is what earns trust and keeps them subscribed. "
     "Write EVERYTHING in {language}; established technical terms may stay in English where that is "
     "the norm among developers."
 )
@@ -33,9 +39,9 @@ FORMAT_SPECS: dict[str, str] = {
         "A spoken monologue script for a single host named {author}. ~500-700 words. Natural and "
         "conversational, short sentences, easy to read aloud. Do NOT write an opening greeting or "
         "introduce yourself/the show (a fixed intro is added before your text) — start directly "
-        "with the subject. Do NOT write a closing sign-off or outro (a fixed outro is added after "
-        "your text) — end on the subject. No stage directions, no speaker labels, no "
-        "markdown — only the words to be spoken."
+        "with the subject. Do NOT write a sign-off, outro, or subscribe/call-to-action either (a "
+        "fixed outro is added after your text) — end on the substance. No stage directions, no "
+        "speaker labels, no markdown — only the words to be spoken."
     ),
     "newsletter": (
         "80-130 words. One punchy, skimmable paragraph followed by a single 'Why it matters:' line. "

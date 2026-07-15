@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     sources_heading: str = "Fontes"
     # Fixed spoken intro prepended to every podcast script (the model is told not to add its own).
     podcast_intro: str = (
-        "Fala galera! Bem vindo novamente ao Vaccari's Code Podcast. Tiago Vaccari aqui."
+        "Fala, galera! Bem-vindos de volta ao Vaccari's Code Podcast. Aqui é o Tiago."
     )
     # Fixed spoken outro appended to every podcast script (the model is told not to add its own).
     # {url} is filled with the spoken subscribe-page URL (host + path, no scheme) for this language.
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     secondary_language_code: str = "en"
     secondary_sources_heading: str = "Sources"
     podcast_intro_en: str = (
-        "What's up everyone! Welcome back to Vaccari's Code Podcast. Tiago here."
+        "What's up, everyone? Welcome back to Vaccari's Code Podcast. Tiago here."
     )
     podcast_outro_en: str = (
         "If this content helped you, subscribe to my newsletter at {url}. I share "
