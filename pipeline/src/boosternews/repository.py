@@ -415,7 +415,15 @@ def get_episode(episode_id: str) -> dict | None:
 
 # ── Review workflow ─────────────────────────────────────────────────────────
 def get_review_queue(limit: int = 50) -> list[dict]:
-    """Topics that have at least one draft awaiting review (pending_review or needs_edit)."""
+    """Topics with a blog or podcast draft awaiting review (pending_review or needs_edit).
+
+    Newsletter drafts do NOT gate the queue: newsletters are not reviewed per-item — they ride
+    the weekly digest off whichever blog posts got published (see ``posts_for_digest``), so their
+    status is vestigial. Counting them here kept topics in review forever (and made deleted
+    posts/episodes linger, since the newsletter twin has no management surface). Newsletters are
+    still loaded and shown within a topic that qualifies via its blog/podcast draft, so they stay
+    editable in the review card.
+    """
     from .db import get_conn
 
     out: list[dict] = []
@@ -423,6 +431,7 @@ def get_review_queue(limit: int = 50) -> list[dict]:
         cur.execute(
             "SELECT t.id, t.title, t.score FROM topics t "
             "WHERE EXISTS (SELECT 1 FROM drafts d WHERE d.topic_id = t.id "
+            "             AND d.channel IN ('blog', 'podcast') "
             "             AND d.status IN ('pending_review', 'needs_edit')) "
             "ORDER BY t.score DESC LIMIT %s",
             (limit,),
@@ -892,9 +901,22 @@ def unpublish_episode(conn: psycopg.Connection, episode_id: str) -> None:
 
 
 def delete_draft(conn: psycopg.Connection, draft_id: str) -> None:
-    """Delete a single draft (e.g. one blog post); leaves the topic and sibling content intact."""
+    """Delete a blog post and its paired newsletter draft (same topic + language).
+
+    The newsletter is the email twin of the blog post and has no independent management surface,
+    so deleting the post removes it too — otherwise it is orphaned and keeps the topic in the
+    review queue. Symmetric with ``delete_episode`` (which deletes the paired podcast draft).
+    Leaves the topic and any podcast/episode content intact.
+    """
     with conn.cursor() as cur:
+        cur.execute("SELECT topic_id, language, channel FROM drafts WHERE id = %s", (draft_id,))
+        row = cur.fetchone()
         cur.execute("DELETE FROM drafts WHERE id = %s", (draft_id,))
+        if row and row[2] == "blog":
+            cur.execute(
+                "DELETE FROM drafts WHERE topic_id = %s AND language = %s AND channel = 'newsletter'",
+                (row[0], row[1]),
+            )
 
 
 def delete_episode(conn: psycopg.Connection, episode_id: str) -> list[str]:
