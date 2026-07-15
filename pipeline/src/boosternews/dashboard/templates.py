@@ -36,6 +36,16 @@ INDEX = """
     .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid #8884; vertical-align: middle; }
     .pending_review { color: #d97706; } .approved { color: #16a34a; } .rejected { color: #dc2626; }
     .needs_edit { color: #ca8a04; } .published { color: #2563eb; }
+    .eptabs > input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+    .tabbar { display: flex; gap: .4rem; margin: 1.25rem 0 0; border-bottom: 1px solid #8884; }
+    .tabbar label { cursor: pointer; padding: .5rem .9rem; border: 1px solid #8884; border-bottom: none;
+                    border-radius: 8px 8px 0 0; background: #8881; font-weight: 600; font-size: .9em; margin-bottom: -1px; }
+    #eptab-review:checked ~ .tabbar label[for=eptab-review],
+    #eptab-pub:checked ~ .tabbar label[for=eptab-pub] { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .tabpanel { display: none; }
+    #eptab-review:checked ~ #eppanel-review,
+    #eptab-pub:checked ~ #eppanel-pub { display: block; }
+    .tabpanel > section.topic { border-top-left-radius: 0; }
   </style>
 </head>
 <body>
@@ -43,13 +53,10 @@ INDEX = """
   <p class="muted">Approve, request edits, or reject each channel. Only approved drafts can be published.</p>
   <p><a class="createlink" href="/create/post">➕ Create Post</a> &nbsp; <a class="createlink" href="/create/episode">➕ Create Episode</a> &nbsp; <a class="createlink" href="/manage">🗂️ Manage content</a></p>
 
-  {% if manual %}
-  <section class="topic">
-    <h2>🎙️ English audio — record &amp; upload</h2>
-    <p class="muted">Download each script, record it in your own voice, and upload the MP3. Available any time, independent of the review queue.</p>
-    {% for m in manual %}
+  {% macro render_audio(m) %}
     <div class="channel">
       <h4>{{ m.title }} <span class="badge">{{ m.language }}</span>
+        <span class="badge {{ m.status }}">{{ m.status }}</span>
         {% if m.audio_url %}<span class="badge approved">audio uploaded{% if m.duration %} · {{ m.duration }}s{% endif %}</span>{% else %}<span class="badge pending_review">no audio yet</span>{% endif %}
       </h4>
       <p>
@@ -61,15 +68,8 @@ INDEX = """
         <button class="approve" type="submit">Enviar áudio</button>
       </form>
     </div>
-    {% endfor %}
-  </section>
-  {% endif %}
-
-  {% if episodes %}
-  <section class="topic">
-    <h2>🎙️ Episodes — edit script &amp; re-narrate</h2>
-    <p class="muted">Auto-narrated {{ primary }} episodes. Edit the script and re-narrate — the home GPU worker regenerates the audio. Published episodes stay live and update in place.</p>
-    {% for ep in episodes %}
+  {% endmacro %}
+  {% macro render_episode(ep) %}
     <div class="channel">
       <h4>{{ ep.title }} <span class="badge {{ ep.status }}">{{ ep.status }}</span>
         {% if ep.audio_url %}<span class="badge approved">audio{% if ep.duration %} · {{ ep.duration }}s{% endif %}</span>{% else %}<span class="badge pending_review">no audio yet</span>{% endif %}
@@ -83,8 +83,57 @@ INDEX = """
         </form>
       </details>
     </div>
-    {% endfor %}
-  </section>
+  {% endmacro %}
+
+  {% set manual_review = manual|rejectattr('status', 'equalto', 'published')|list %}
+  {% set manual_pub = manual|selectattr('status', 'equalto', 'published')|list %}
+  {% set ep_review = episodes|rejectattr('status', 'equalto', 'published')|list %}
+  {% set ep_pub = episodes|selectattr('status', 'equalto', 'published')|list %}
+  {% if manual or episodes %}
+  <div class="eptabs">
+    <input type="radio" name="eptab" id="eptab-review" checked />
+    <input type="radio" name="eptab" id="eptab-pub" />
+    <div class="tabbar">
+      <label for="eptab-review">⏳ Waiting review ({{ manual_review|length + ep_review|length }})</label>
+      <label for="eptab-pub">✅ Published ({{ manual_pub|length + ep_pub|length }})</label>
+    </div>
+
+    <div class="tabpanel" id="eppanel-review">
+      {% if manual_review %}
+      <section class="topic">
+        <h2>🎙️ English audio — record &amp; upload</h2>
+        <p class="muted">Download each script, record it in your own voice, and upload the MP3. Available any time, independent of the review queue.</p>
+        {% for m in manual_review %}{{ render_audio(m) }}{% endfor %}
+      </section>
+      {% endif %}
+      {% if ep_review %}
+      <section class="topic">
+        <h2>🎙️ Episodes — edit script &amp; re-narrate</h2>
+        <p class="muted">Auto-narrated {{ primary }} episodes awaiting review. Edit the script and re-narrate — the home GPU worker regenerates the audio.</p>
+        {% for ep in ep_review %}{{ render_episode(ep) }}{% endfor %}
+      </section>
+      {% endif %}
+      {% if not manual_review and not ep_review %}<p class="muted">No episodes waiting review. 🎉</p>{% endif %}
+    </div>
+
+    <div class="tabpanel" id="eppanel-pub">
+      {% if manual_pub %}
+      <section class="topic">
+        <h2>🎙️ English audio — published</h2>
+        <p class="muted">Already-published English episodes. Re-upload the MP3 to replace the live audio.</p>
+        {% for m in manual_pub %}{{ render_audio(m) }}{% endfor %}
+      </section>
+      {% endif %}
+      {% if ep_pub %}
+      <section class="topic">
+        <h2>🎙️ Episodes — published</h2>
+        <p class="muted">Published {{ primary }} episodes stay live. Edit the script and re-narrate — the audio updates in place.</p>
+        {% for ep in ep_pub %}{{ render_episode(ep) }}{% endfor %}
+      </section>
+      {% endif %}
+      {% if not manual_pub and not ep_pub %}<p class="muted">No published episodes yet.</p>{% endif %}
+    </div>
+  </div>
   {% endif %}
 
   {% if not queue %}
