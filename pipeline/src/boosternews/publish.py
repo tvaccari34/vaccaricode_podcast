@@ -8,6 +8,10 @@ the same topic already cross-link.
 
 Nothing publishes unless it was approved in the review dashboard (task group 5) — the gate lives
 in repository.publish_draft via review.assert_publishable.
+
+A podcast draft has a second gate: its episode must have narration audio. Approving a podcast draft
+is what queues that audio, so a freshly approved episode is skipped here ("waiting for narration
+audio") until the narration job completes; the scheduler's publish job retries every tick.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ import logging
 from . import repository as repo
 from .config import get_settings
 from .db import get_conn
+from .review import episode_audio_ready
 
 log = logging.getLogger("boosternews.publish")
 
@@ -45,6 +50,14 @@ def publish_topic(topic_id: str) -> dict[str, str]:
             key = f"{d['channel']}/{d['language']}"
             if d["status"] != "approved":
                 summary[key] = f"skipped ({d['status']})"
+                continue
+
+            if d["channel"] == "podcast" and not episode_audio_ready(
+                repo.episode_audio_url(conn, topic_id, d["language"])
+            ):
+                # Approval queued the narration; it has not landed yet. Leave the draft approved —
+                # the scheduler's publish job retries and ships it once the audio exists.
+                summary[key] = "waiting for narration audio"
                 continue
 
             repo.publish_draft(conn, d["id"])  # gate-enforced

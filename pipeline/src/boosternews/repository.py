@@ -374,18 +374,25 @@ def list_primary_episodes(limit: int = 50) -> list[dict]:
 def episode_audio_target_status(conn: psycopg.Connection, episode_id: str) -> str:
     """Status an episode should take once its audio is (re)generated.
 
-    Re-narrating an already-published episode must keep it live, so return ``'published'`` when the
-    episode's podcast draft is already published; otherwise ``'ready'`` (first narration, still
-    awaiting review/publish).
+    Mirrors its podcast draft so narration never walks the episode backwards: a re-narrated
+    published episode stays live (``'published'``), and an episode narrated *because* it was
+    approved stays ``'approved'`` (audio now attached, waiting for the publish job). Anything else
+    is a first narration still awaiting review → ``'ready'``.
     """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT EXISTS (SELECT 1 FROM drafts d JOIN episodes e "
+            "SELECT d.status FROM drafts d JOIN episodes e "
             "ON e.topic_id = d.topic_id AND e.language = d.language "
-            "WHERE e.id = %s AND d.channel = 'podcast' AND d.status = 'published')",
+            "WHERE e.id = %s AND d.channel = 'podcast'",
             (episode_id,),
         )
-        return "published" if cur.fetchone()[0] else "ready"
+        row = cur.fetchone()
+        draft_status = row[0] if row else None
+        if draft_status == "published":
+            return "published"
+        if draft_status == "approved":
+            return "approved"
+        return "ready"
 
 
 def get_episode(episode_id: str) -> dict | None:
@@ -474,9 +481,19 @@ def record_review(
     reviewer: str,
     notes: str | None = None,
     language: str = "pt-BR",
+    narrate: bool = True,
 ) -> None:
-    """Record a per-channel review decision and apply the resulting status transition."""
-    from .review import decision_to_status
+    """Record a per-channel review decision, apply the status transition, and queue narration.
+
+    Approving a podcast draft is what triggers narration (see ``review.should_narrate_on_approval``)
+    — generation deliberately leaves episodes audio-less so TTS spend follows editorial decisions.
+
+    Pass ``narrate=False`` when the caller supplies the audio itself (the dashboard's manual-episode
+    form, where an uploaded MP3 wins over narration) — otherwise approving would queue TTS for an
+    episode that is about to receive a file.
+    """
+    from .config import get_settings
+    from .review import decision_to_status, episode_audio_ready, should_narrate_on_approval
 
     new_status = decision_to_status(decision)  # validates the decision
     with conn.cursor() as cur:
@@ -488,13 +505,15 @@ def record_review(
         draft_id = row[0] if row else None
 
         episode_id = None
+        episode: tuple | None = None
         if channel == "podcast":
             cur.execute(
-                "SELECT id FROM episodes WHERE topic_id = %s AND language = %s",
+                "SELECT id, COALESCE(voice_id, ''), script, audio_url FROM episodes "
+                "WHERE topic_id = %s AND language = %s",
                 (topic_id, language),
             )
-            er = cur.fetchone()
-            episode_id = er[0] if er else None
+            episode = cur.fetchone()
+            episode_id = episode[0] if episode else None
 
         cur.execute(
             "INSERT INTO reviews (draft_id, episode_id, channel, decision, reviewer, notes) "
@@ -511,6 +530,19 @@ def record_review(
                 "UPDATE episodes SET status = 'approved', updated_at = now() WHERE id = %s",
                 (episode_id,),
             )
+
+    # Approval is what pays for audio: queue narration now, unless this episode already has some
+    # (re-approving a narrated episode must not re-spend the TTS quota).
+    if episode and narrate and should_narrate_on_approval(
+        channel=channel,
+        decision=decision,
+        language=language,
+        primary_language=get_settings().primary_language_code,
+        secondary_enabled=get_settings().narration_secondary_enabled,
+    ):
+        _, voice_id, script, audio_url = episode
+        if not episode_audio_ready(audio_url) and script:
+            enqueue_narration(conn, str(episode_id), voice_id or "tiago", script)
 
 
 def publish_draft(conn: psycopg.Connection, draft_id: str) -> str:
@@ -564,6 +596,19 @@ def publish_episode(conn: psycopg.Connection, topic_id: str, language: str = "pt
             "WHERE topic_id = %s AND language = %s",
             (topic_id, language),
         )
+
+
+def episode_audio_url(
+    conn: psycopg.Connection, topic_id: str, language: str
+) -> str | None:
+    """The (topic, language) episode's audio URL, or None if it has not been narrated yet."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT audio_url FROM episodes WHERE topic_id = %s AND language = %s",
+            (topic_id, language),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
 
 
 def record_publication(
@@ -753,13 +798,20 @@ def list_narration_jobs(limit: int = 20) -> list[dict]:
 
 
 def episodes_needing_narration() -> list[tuple[str, str, str]]:
-    """Episodes with a script but no audio and no active job. Returns (episode_id, voice_id, script)."""
+    """APPROVED episodes with a script but no audio and no active job.
+
+    Returns (episode_id, voice_id, script). Scoped to approved/published podcast drafts on purpose:
+    an unreviewed draft must not be narrated, or a backfill re-spends the whole TTS quota on content
+    nobody decided to ship.
+    """
     from .db import get_conn
 
     with get_conn(autocommit=True) as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT id, COALESCE(voice_id, ''), script FROM episodes e "
-            "WHERE audio_url IS NULL "
+            "SELECT e.id, COALESCE(e.voice_id, ''), e.script FROM episodes e "
+            "JOIN drafts d ON d.topic_id = e.topic_id AND d.language = e.language "
+            "                AND d.channel = 'podcast' "
+            "WHERE e.audio_url IS NULL AND d.status IN ('approved', 'published') "
             "AND NOT EXISTS (SELECT 1 FROM narration_jobs n "
             "                WHERE n.episode_id = e.id AND n.status IN ('queued', 'claimed', 'completed'))"
         )
@@ -851,8 +903,15 @@ def publish_item(conn: psycopg.Connection, draft_id: str) -> None:
 
 
 def publish_episode_item(conn: psycopg.Connection, episode_id: str) -> None:
-    """Publish one episode (and its podcast draft) directly."""
+    """Publish one episode (and its podcast draft) directly. Requires narration audio."""
+    from .review import assert_audio_present
+
     with conn.cursor() as cur:
+        cur.execute("SELECT audio_url FROM episodes WHERE id = %s", (episode_id,))
+        row = cur.fetchone()
+        if not row:
+            return
+        assert_audio_present(row[0])  # a silent episode must never reach the feed
         cur.execute(
             "UPDATE episodes SET status = 'published', updated_at = now() WHERE id = %s "
             "RETURNING topic_id, language",

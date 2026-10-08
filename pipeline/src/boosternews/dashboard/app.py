@@ -237,7 +237,9 @@ async def create_episode(
                 conn, topic_id, draft_id, title, script, notes, language=lang, voice_id=voice
             )
             if approve:
-                repo.record_review(conn, topic_id=topic_id, channel="podcast", decision="approve", reviewer=s.author_name, language=lang)
+                # narrate=False: this form decides audio itself just below (upload wins, else the
+                # explicit auto-narrate checkbox), so approval must not queue TTS on its own.
+                repo.record_review(conn, topic_id=topic_id, channel="podcast", decision="approve", reviewer=s.author_name, language=lang, narrate=False)
             data = uploaded.get(lang) or b""
             if data:
                 to_store.append((episode_id, data))  # uploaded audio wins over narration

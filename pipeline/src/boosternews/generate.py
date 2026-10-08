@@ -197,25 +197,27 @@ def _persist_language(
     show_notes: str,
     meta: dict,
     voice_id: str | None,
-    narrate: bool,
 ) -> dict:
-    """Persist one language's drafts + episode; optionally queue narration (primary language)."""
+    """Persist one language's drafts + episode.
+
+    Narration is NOT queued here: audio is synthesized when a podcast draft is approved (see
+    ``repository.record_review``), so TTS spend follows editorial decisions instead of preceding
+    them.
+    """
     blog_id = repo.upsert_draft(conn, topic_id, "blog", title, blog_md, meta, language)
     news_id = repo.upsert_draft(conn, topic_id, "newsletter", title, blurb, meta, language)
     pod_id = repo.upsert_draft(conn, topic_id, "podcast", title, script, meta, language)
     episode_id = repo.upsert_episode(
         conn, topic_id, pod_id, title, script, show_notes, language, voice_id
     )
-    if narrate:
-        repo.enqueue_narration(conn, episode_id, voice_id or "tiago", script)
     return {"blog": blog_id, "newsletter": news_id, "podcast": pod_id, "episode": episode_id}
 
 
 def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     """Generate all formats for a topic (primary + secondary language), persist, mark 'drafted'.
 
-    Primary language (pt-BR) is auto-narrated. The secondary language (English) mirror gets a
-    generated script but NO narration job — its audio is uploaded manually via the dashboard.
+    Both languages get a script but NO narration job: audio is queued when a podcast draft is
+    approved. The secondary-language (English) mirror is a translation of the pt-BR output.
     """
     s = get_settings()
     topic = repo.get_topic(topic_id)
@@ -292,7 +294,6 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
             show_notes=pt_show_notes,
             meta=meta,
             voice_id=s.voice_id,
-            narrate=True,
         )
         if en:
             _persist_language(
@@ -306,8 +307,6 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
                 show_notes=en["show_notes"],
                 meta=meta,
                 voice_id=None,
-                # Secondary language is manual-audio by default; a cloud provider can auto-narrate it.
-                narrate=s.narration_secondary_enabled,
             )
         repo.set_topic_status(conn, topic_id, "drafted")
         conn.commit()
