@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+TTS_ENGINES = ("voicestudio", "xtts", "f5")
 
 
 class WorkerSettings(BaseSettings):
@@ -28,8 +30,24 @@ class WorkerSettings(BaseSettings):
     worker_id: str = "home-4060ti"
     voice_id: str = "tiago"
 
-    # TTS engine: "xtts" (coqui XTTS-v2) or "f5" (F5-TTS — better zero-shot fidelity/accent).
-    tts_engine: str = "xtts"
+    # TTS engine: "voicestudio" (default — self-hosted VoiceStudio over HTTP on the home network),
+    # "xtts" (coqui XTTS-v2, in-process) or "f5" (F5-TTS, in-process).
+    tts_engine: str = "voicestudio"
+
+    # VoiceStudio (https://github.com/debpalash/voicestudio). Voices are VoiceStudio voice
+    # profiles cloned from the reference sample in its UI; pass the profile id (or unique name).
+    voicestudio_url: str = "http://voicestudio:3900"
+    voicestudio_api_key: str = ""  # = the container's OMNIVOICE_API_KEY
+    voicestudio_model: str = "omnivoice"
+    voicestudio_voice: str = ""  # primary-language voice profile
+    voicestudio_voice_en: str = ""  # secondary-language voice profile (falls back to the primary)
+    voicestudio_max_chars: int = Field(2000, gt=0, lt=4096)  # VoiceStudio caps input at 4096
+    voicestudio_timeout_seconds: int = 600
+    # OmniVoice iterative-unmasking steps. VoiceStudio's API default is 16; 32 is the model's
+    # documented quality preset and sounded clearly better in A/B tests at no noticeable speed cost.
+    voicestudio_num_step: int = Field(32, ge=1, le=128)
+    # Jobs in this language use voicestudio_voice_en (mirrors the VPS's SECONDARY_LANGUAGE_CODE).
+    secondary_language_code: str = "en"
 
     # XTTS-v2 model + the owner's private reference sample (kept on the home machine).
     model_name: str = "tts_models/multilingual/multi-dataset/xtts_v2"
@@ -60,6 +78,14 @@ class WorkerSettings(BaseSettings):
     # Polling cadence + resilience.
     poll_interval_seconds: int = 10
     request_timeout_seconds: int = 120
+
+    @field_validator("tts_engine")
+    @classmethod
+    def _check_engine(cls, v: str) -> str:
+        name = (v or "").strip().lower()
+        if name not in TTS_ENGINES:
+            raise ValueError(f"TTS_ENGINE must be one of {', '.join(TTS_ENGINES)}")
+        return name
 
 
 @lru_cache(maxsize=1)

@@ -1,7 +1,8 @@
 """Pluggable text-to-speech providers for podcast narration.
 
-``local`` (default) means the home GPU sound-worker synthesizes over the job queue — there is no
-server-side provider. ``elevenlabs`` and ``custom`` synthesize on the VPS via these providers.
+``local`` (default) means the home GPU sound-worker synthesizes over the job queue (VoiceStudio,
+F5 or XTTS) — there is no server-side provider. ``custom`` synthesizes on the VPS via an HTTP
+provider.
 """
 
 from __future__ import annotations
@@ -26,10 +27,6 @@ def get_provider(name: str | None = None) -> TTSProvider | None:
     """The active VPS-side provider, or None for ``local`` (the home worker handles it)."""
     s = get_settings()
     name = (name or s.narration_provider or "local").strip().lower()
-    if name == "elevenlabs":
-        from .elevenlabs import ElevenLabsProvider
-
-        return ElevenLabsProvider()
     if name == "custom":
         from .custom import CustomHttpProvider
 
@@ -42,8 +39,6 @@ def voice_for(language: str) -> str:
     s = get_settings()
     name = (s.narration_provider or "local").strip().lower()
     secondary = bool(s.secondary_language_code) and language == s.secondary_language_code
-    if name == "elevenlabs":
-        return s.elevenlabs_voice_id_en if secondary and s.elevenlabs_voice_id_en else s.elevenlabs_voice_id
     if name == "custom":
         return s.custom_tts_voice_en if secondary and s.custom_tts_voice_en else s.custom_tts_voice
     return s.voice_id

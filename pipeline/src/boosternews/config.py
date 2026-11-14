@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+NARRATION_PROVIDERS = ("local", "custom")
 
 
 class Settings(BaseSettings):
@@ -119,14 +121,11 @@ class Settings(BaseSettings):
     audio_intro_path: str = ""
     audio_outro_path: str = ""
     # ── Narration backend (TTS provider) ─────────────────────────────────
-    # local = home GPU sound-worker (F5/XTTS, default). elevenlabs / custom synthesize on the VPS.
+    # local = home GPU sound-worker (VoiceStudio/F5/XTTS, default). custom synthesizes on the VPS.
     narration_provider: str = "local"
-    # Also auto-narrate the secondary language (English) — only meaningful for a cloud provider.
+    # Also auto-narrate the secondary language (English); the job carries its language so the
+    # home worker (or the custom provider) picks the matching voice.
     narration_secondary_enabled: bool = False
-    elevenlabs_api_key: str = ""
-    elevenlabs_model: str = "eleven_multilingual_v2"
-    elevenlabs_voice_id: str = ""  # primary-language voice (from your ElevenLabs clone)
-    elevenlabs_voice_id_en: str = ""  # secondary-language voice (falls back to the primary)
     custom_tts_url: str = ""
     custom_tts_api_key: str = ""
     custom_tts_model: str = ""
@@ -135,6 +134,21 @@ class Settings(BaseSettings):
     custom_tts_format: str = "generic"  # generic | openai
     # UTM tagging of externally-delivered links (newsletter email, podcast show notes).
     utm_enabled: bool = True
+
+    @field_validator("narration_provider")
+    @classmethod
+    def _check_narration_provider(cls, v: str) -> str:
+        # An unknown provider would make /narration/claim serve nothing AND the VPS drainer no-op,
+        # silently stranding every job — so refuse to start instead.
+        name = (v or "local").strip().lower()
+        if name == "elevenlabs":
+            raise ValueError(
+                "NARRATION_PROVIDER=elevenlabs is no longer supported; use 'local' (home "
+                "sound-worker, VoiceStudio) or 'custom'"
+            )
+        if name not in NARRATION_PROVIDERS:
+            raise ValueError(f"NARRATION_PROVIDER must be one of {', '.join(NARRATION_PROVIDERS)}")
+        return name
 
 
 @lru_cache(maxsize=1)

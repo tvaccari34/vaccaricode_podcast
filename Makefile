@@ -33,7 +33,7 @@ publish:            ## publish approved drafts, then rebuild the site
 	$(VPS) run --rm pipeline python -m boosternews publish --all
 	$(VPS) run --rm web-build
 
-worker:             ## build+run the GPU sound-worker on this machine (needs NVIDIA GPU + voice sample)
+worker:             ## build+run VoiceStudio + the GPU sound-worker on this machine (needs NVIDIA GPU)
 	$(VPS) --profile worker up -d --build sound-worker
 
 worker-logs:

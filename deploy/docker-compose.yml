@@ -168,8 +168,31 @@ services:
     ports:
       - "8090:8090"
 
+  # VoiceStudio — the sound-worker's default TTS engine (see compose.home.yml for details).
+  # UI on http://127.0.0.1:3900 for creating the voice profile(s) (deploy/voice/README.md).
+  voicestudio:
+    image: ghcr.io/debpalash/voicestudio:0.5.7
+    restart: unless-stopped
+    environment:
+      OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:-}
+      OMNIVOICE_DATA_DIR: /app/omnivoice_data
+      OMNIVOICE_ANALYTICS_DISABLED: "1"
+    ports:
+      - "127.0.0.1:3900:3900"
+    volumes:
+      - voicestudio-data:/app/omnivoice_data
+    profiles: ["worker"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   # GPU sound-worker — runs on THIS machine (all-in-one local) talking to narration-api over the
-  # internal network. Needs an NVIDIA GPU visible to Docker + deploy/voice/reference.wav.
+  # internal network. Synthesizes through the voicestudio service above (TTS_ENGINE=voicestudio,
+  # default); TTS_ENGINE=xtts|f5 use deploy/voice/reference.wav in-process instead.
   #   docker compose --profile worker up -d sound-worker   (or `make worker`)
   # (For the remote-home topology instead, use deploy/compose.home.yml.)
   sound-worker:
@@ -184,11 +207,20 @@ services:
       WORKER_ID: ${WORKER_ID:-home-4060ti}
       VOICE_ID: ${VOICE_ID:-tiago}
       REFERENCE_SAMPLE_PATH: /data/voice/${REFERENCE_SAMPLE_FILE:-reference.wav}
+      TTS_ENGINE: ${TTS_ENGINE:-voicestudio}
+      # Fallback job language when the VPS predates per-job language (the primary is pt-BR), so
+      # VoiceStudio never reads a Portuguese script as English. Jobs that carry a language win.
+      LANGUAGE: ${LANGUAGE:-pt}
+      VOICESTUDIO_URL: http://voicestudio:3900
+      VOICESTUDIO_API_KEY: ${OMNIVOICE_API_KEY:-}
     volumes:
       - ./voice:/data/voice:ro
       - tts-cache:/root/.local/share/tts
     depends_on:
-      - narration-api
+      narration-api:
+        condition: service_started
+      voicestudio:
+        condition: service_healthy
     profiles: ["worker"]
     deploy:
       resources:
@@ -234,3 +266,4 @@ volumes:
   caddydata:
   caddyconfig:
   tts-cache:
+  voicestudio-data:

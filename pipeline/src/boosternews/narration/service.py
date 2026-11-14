@@ -1,9 +1,9 @@
-"""Shared narration completion + the VPS-side drainer for cloud TTS providers.
+"""Shared narration completion + the VPS-side drainer for server-side TTS providers.
 
 `complete_narration` is the single downstream path (store raw → ffmpeg assemble → store mp3 →
 attach to episode → complete job → queue rebuild), used by both the home-worker upload (the
-`/complete` route) and the VPS drainer. `drain_once` is the server-side queue processor used when a
-cloud provider (elevenlabs/custom) is active.
+`/complete` route) and the VPS drainer. `drain_once` is the server-side queue processor used when
+the `custom` provider is active.
 """
 
 from __future__ import annotations
