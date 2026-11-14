@@ -12,7 +12,7 @@ themakitachronicles.com newsletter.
 | Where | Runs | Notes |
 |-------|------|-------|
 | **VPS** (always-on) | Astro site, pipeline, PostgreSQL, object storage (MinIO/S3), Listmonk, review dashboard | Public + stateful. Docker Compose. |
-| **Home PC** (RTX 4060 Ti) | `sound-worker` only | Voice generation (XTTS-v2 cloned voice). Pulls jobs from the VPS over outbound HTTPS — no inbound ports, no static IP. |
+| **Home PC** (RTX 4060 Ti) | `sound-worker` + VoiceStudio | Voice generation (cloned voice via self-hosted VoiceStudio). Pulls jobs from the VPS over outbound HTTPS — no inbound ports, no static IP. |
 
 If the home PC is offline, narration jobs queue on the VPS and drain when it returns; the
 public site is unaffected.
@@ -33,7 +33,7 @@ openspec/       The spec-driven proposal (change: bootstrap-content-platform)
 - **Pipeline / worker:** Python 3.12 (feedparser, trafilatura, Google Gemini `google-genai`, boto3, psycopg, ffmpeg)
 - **Site:** Astro (static) — RSS + iTunes podcast feed
 - **Newsletter:** self-hosted Listmonk, pluggable SMTP (Amazon SES or Resend)
-- **TTS:** XTTS-v2 (zero-shot voice cloning) on the home GPU
+- **TTS:** [VoiceStudio](https://github.com/debpalash/voicestudio) (OmniVoice, AGPL-3.0, run unmodified as a separate container) on the home GPU; F5-TTS / XTTS-v2 as fallbacks
 - **Data:** PostgreSQL + S3-compatible object storage
 
 ## Quick start (VPS / dev)

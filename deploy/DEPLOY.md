@@ -10,7 +10,7 @@ End-to-end guide: secrets, the content flow, the scheduler, and production deplo
 
 ```
   VPS (always-on, public)                         HOME PC (RTX 4060 Ti)
-  pipeline · scheduler · PostgreSQL · MinIO        sound-worker (XTTS-v2)
+  pipeline · scheduler · PostgreSQL · MinIO        sound-worker + VoiceStudio
   Listmonk · review dashboard · Astro site         pulls narration jobs (outbound HTTPS)
         served by Caddy (auto-TLS)
 ```
@@ -110,12 +110,16 @@ On the home machine (NVIDIA Container Toolkit installed):
 
 ```bash
 cp .env.example .env            # set VPS_API_URL=https://tiagovaccari.com/api + WORKER_AUTH_TOKEN
-# place the voice reference sample at deploy/voice/reference.wav
+                                # + OMNIVOICE_API_KEY (openssl rand -hex 32)
+docker compose --env-file .env -f deploy/compose.home.yml up -d voicestudio
+# wait for healthy (first boot downloads ~2.4 GB of weights), then create the voice profile(s)
+# at http://127.0.0.1:3900 per deploy/voice/README.md and set VOICESTUDIO_VOICE[_EN] in .env
 docker compose --env-file .env -f deploy/compose.home.yml up -d
 ```
 
-It connects out to the VPS, claims narration jobs, synthesizes in the cloned voice, and uploads
-audio back. (Synthesis itself is task group 4.)
+The sound-worker connects out to the VPS, claims narration jobs, synthesizes each one through the
+local **VoiceStudio** container in the job language's cloned voice, and uploads the audio back. It
+holds off claiming while VoiceStudio isn't healthy. See [Narration backend](#narration-backend-tts-providers).
 
 ## 7. Submit the podcast to directories (one-time)
 
@@ -150,16 +154,19 @@ After deploy, confirm the loop:
 
 Podcast narration has a pluggable backend, selected by `NARRATION_PROVIDER` in `.env`:
 
-- **`local`** (default): the home GPU sound-worker (F5/XTTS). Nothing else to configure.
-- **`elevenlabs`**: synthesized on the VPS via ElevenLabs (no home PC needed). Create a voice in the
-  ElevenLabs dashboard, copy its **voice id**, then set:
-  ```ini
-  NARRATION_PROVIDER=elevenlabs
-  ELEVENLABS_API_KEY=...
-  ELEVENLABS_VOICE_ID=<primary voice>
-  ELEVENLABS_VOICE_ID_EN=<english voice, optional>
-  # ELEVENLABS_MODEL=eleven_multilingual_v2
-  ```
+- **`local`** (default): the home GPU sound-worker. Its engine is chosen on the **home** `.env` by
+  `TTS_ENGINE`:
+  - `voicestudio` (default) — self-hosted [VoiceStudio](https://github.com/debpalash/voicestudio)
+    (OmniVoice) running next to the worker (`deploy/compose.home.yml`), called over its
+    OpenAI-compatible `/v1/audio/speech`. Free, and the cloned voice never leaves the home machine.
+    ```ini
+    OMNIVOICE_API_KEY=<openssl rand -hex 32>
+    VOICESTUDIO_VOICE=<pt-BR voice profile id>
+    VOICESTUDIO_VOICE_EN=<english voice profile id, optional — falls back to the primary>
+    # VOICESTUDIO_NUM_STEP=32   VOICESTUDIO_MODEL=omnivoice
+    # VOICESTUDIO_MAX_CHARS=2000   VOICESTUDIO_TIMEOUT_SECONDS=600
+    ```
+  - `f5` / `xtts` — the previous in-process engines, kept as a fallback (use the reference WAV).
 - **`custom`**: your own/self-hosted model via HTTP. Generic mode posts `{text,voice,language,format}`;
   OpenAI mode posts `{model,input,voice,response_format}` to a `/v1/audio/speech`-style endpoint:
   ```ini
@@ -170,14 +177,42 @@ Podcast narration has a pluggable backend, selected by `NARRATION_PROVIDER` in `
   CUSTOM_TTS_FORMAT=generic       # or: openai
   ```
 
-Then redeploy (`deploy/redeploy.sh`). For a cloud provider, a **scheduler `narrate` job** drains the
+Then redeploy (`deploy/redeploy.sh`). With `custom`, a **scheduler `narrate` job** drains the
 narration queue on the VPS and the `/narration/claim` API stops serving the home worker (so a job is
-never done twice). Assembly (intro/outro, normalization, MP3) is identical across providers.
+never done twice). Any other `NARRATION_PROVIDER` value fails at startup rather than silently
+stranding jobs. Assembly (intro/outro, normalization, MP3) is identical across providers.
 
-Cloud providers can also **auto-narrate English** — set `NARRATION_SECONDARY_ENABLED=true` (default
-off keeps English as a manual MP3 upload). To A/B quality, switch the provider and re-narrate one
-episode from the dashboard. Revert anytime with `NARRATION_PROVIDER=local`. Note: ElevenLabs bills
-per character.
+Both providers can **auto-narrate English** — set `NARRATION_SECONDARY_ENABLED=true` (default off
+keeps English as a manual MP3 upload). Each claimed job carries its episode's `language`, so the home
+worker uses `VOICESTUDIO_VOICE_EN` for English. To A/B quality, switch `TTS_ENGINE` on the home
+machine and re-narrate one episode from the dashboard.
+
+### Migrating from ElevenLabs
+
+ElevenLabs was removed; `NARRATION_PROVIDER=elevenlabs` now **fails at startup**.
+
+1. On the home machine: set up VoiceStudio and the voice profile(s) (§6), then
+   `curl` a test paragraph per language and listen:
+   ```bash
+   curl -s http://127.0.0.1:3900/v1/audio/speech -H "Authorization: Bearer $OMNIVOICE_API_KEY" \
+     -H 'content-type: application/json' -o test.mp3 \
+     -d '{"model":"omnivoice","voice":"<profile id>","language":"pt","input":"Olá! Teste de narração."}'
+   ```
+2. On the VPS: set `NARRATION_PROVIDER=local` **in the same step** as deploying this version (and
+   optionally `NARRATION_SECONDARY_ENABLED=true`), then redeploy.
+3. Start the home stack, re-narrate one episode from the dashboard, check it plays on the site/feed.
+4. Delete the `ELEVENLABS_*` lines from `.env` (they're ignored now) and cancel the ElevenLabs plan.
+
+Rollback without a VPS change: `TTS_ENGINE=f5` (or `xtts`) on the home machine.
+
+**Licensing:** VoiceStudio is AGPL-3.0; it runs unmodified as a separate container that BoosterNews
+only calls over HTTP, which puts no obligations on this codebase. Model weights carry their own
+licenses — check them in VoiceStudio's **Model Manager** before production use.
+**The default OmniVoice weights are CC-BY-NC: non-commercial use only** (the F5-TTS and XTTS-v2
+fallbacks are non-commercial too). Before using narration commercially (ads, sponsorships, paid
+products), install **VoxCPM2** (Apache-2.0, supports Portuguese) in the Model Manager and set
+`VOICESTUDIO_MODEL=voxcpm2` on the worker.
+VoiceStudio also embeds an inaudible provenance watermark in generated audio.
 
 ## Site analytics (Umami) + UTM
 

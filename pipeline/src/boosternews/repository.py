@@ -657,11 +657,17 @@ def enqueue_narration(
 
 
 def claim_next_job(conn: psycopg.Connection, worker_id: str) -> dict | None:
-    """Atomically claim the oldest queued narration job. Returns the job or None."""
+    """Atomically claim the oldest queued narration job. Returns the job or None.
+
+    The job carries its episode's ``language`` so the worker can pick the matching voice.
+    """
+    from .config import get_settings
+
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id, episode_id, voice_id, text FROM narration_jobs "
-            "WHERE status = 'queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1"
+            "SELECT j.id, j.episode_id, j.voice_id, j.text, e.language FROM narration_jobs j "
+            "LEFT JOIN episodes e ON e.id = j.episode_id "
+            "WHERE j.status = 'queued' ORDER BY j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1"
         )
         row = cur.fetchone()
         if not row:
@@ -676,6 +682,7 @@ def claim_next_job(conn: psycopg.Connection, worker_id: str) -> dict | None:
             "episode_id": str(row[1]),
             "voice_id": row[2],
             "text": row[3],
+            "language": row[4] or get_settings().primary_language_code,
         }
 
 

@@ -3,11 +3,36 @@
 # Usage (from deploy/):
 #   docker compose -f compose.home.yml up -d
 #
-# This container opens NO inbound ports — it only makes outbound HTTPS calls to the VPS.
+# Nothing is reachable from outside the machine: the worker only makes outbound HTTPS calls to
+# the VPS, and VoiceStudio's UI/API is published on 127.0.0.1 only (for the one-time voice-profile
+# setup — see deploy/voice/README.md).
 
 name: boosternews-home
 
 services:
+  # Self-hosted VoiceStudio (AGPL-3.0, run unmodified) — the default narration engine. The worker
+  # calls its OpenAI-compatible /v1/audio/speech at http://voicestudio:3900. The image's built-in
+  # HEALTHCHECK turns healthy once /health is 200 (first boot downloads ~2.4 GB of weights).
+  voicestudio:
+    image: ghcr.io/debpalash/voicestudio:0.5.7
+    restart: unless-stopped
+    environment:
+      OMNIVOICE_API_KEY: ${OMNIVOICE_API_KEY:?set OMNIVOICE_API_KEY in .env}
+      OMNIVOICE_DATA_DIR: /app/omnivoice_data
+      OMNIVOICE_ANALYTICS_DISABLED: "1"
+    ports:
+      - "127.0.0.1:3900:3900"
+    volumes:
+      # Voice profiles, settings and the HF model cache — survives upgrades.
+      - voicestudio-data:/app/omnivoice_data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   sound-worker:
     build:
       context: ../sound-worker
@@ -23,11 +48,21 @@ services:
       # Exact transcript of the reference clip's first ~12s → F5 skips Whisper auto-transcription
       # (which had mis-detected the reference as English and mangled pronunciation).
       F5_REF_TEXT: ${F5_REF_TEXT:-}
+      # VoiceStudio engine (default). VOICESTUDIO_VOICE[_EN] come from .env.
+      TTS_ENGINE: ${TTS_ENGINE:-voicestudio}
+      # Fallback job language when the VPS predates per-job language (the primary is pt-BR), so
+      # VoiceStudio never reads a Portuguese script as English. Jobs that carry a language win.
+      LANGUAGE: ${LANGUAGE:-pt}
+      VOICESTUDIO_URL: http://voicestudio:3900
+      VOICESTUDIO_API_KEY: ${OMNIVOICE_API_KEY}
     volumes:
       # The private cloned-voice reference sample + model cache stay on the home machine.
       - ./voice:/data/voice:ro
       - hf-cache:/root/.local/share/tts
-    # GPU access via the NVIDIA Container Toolkit:
+    depends_on:
+      voicestudio:
+        condition: service_healthy
+    # GPU access via the NVIDIA Container Toolkit (only used by the xtts/f5 fallback engines):
     deploy:
       resources:
         reservations:
@@ -38,3 +73,4 @@ services:
 
 volumes:
   hf-cache:
+  voicestudio-data:

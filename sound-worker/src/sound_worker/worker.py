@@ -1,15 +1,16 @@
-"""Pull-based narration worker loop (skeleton).
+"""Pull-based narration worker loop.
 
 The worker connects OUT to the VPS, claims the next queued narration job, synthesizes it with
 the cloned voice, and uploads the resulting audio back. No inbound ports are opened on the home
 network. If the VPS is unreachable or no jobs are queued, it backs off and retries.
 
-Task group 1 provides this control loop and the HTTP contract. The actual XTTS-v2 synthesis is
-implemented in task group 4 (see the ``synthesize`` TODO below).
+Synthesis goes through the configured engine: VoiceStudio over HTTP (default, see
+``voicestudio.py``) or in-process XTTS-v2 / F5-TTS.
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import time
@@ -17,6 +18,7 @@ import unicodedata
 
 import httpx
 
+from . import voicestudio
 from .config import WorkerSettings, get_worker_settings
 
 log = logging.getLogger("sound_worker")
@@ -194,16 +196,25 @@ def _synthesize_xtts(text: str, settings: WorkerSettings, out_path: str) -> None
     )
 
 
-def synthesize(text: str, settings: WorkerSettings) -> bytes:
+def synthesize(
+    text: str,
+    settings: WorkerSettings,
+    language: str | None = None,
+    vs: httpx.Client | None = None,
+) -> bytes:
     """Render ``text`` to speech in the owner's cloned voice. Returns WAV bytes.
 
-    Zero-shot voice cloning from the reference sample via the configured engine (xtts | f5).
-    Requires a registered reference sample — fails loudly rather than using a different voice.
+    ``voicestudio`` uses the job ``language``'s VoiceStudio voice profile (``vs`` is a reusable
+    VoiceStudio client). ``xtts`` / ``f5`` clone zero-shot from the local reference sample.
+    Either way it fails loudly rather than using a different voice.
     """
     import os
     import tempfile
 
     text = normalize_for_tts(text)
+
+    if settings.tts_engine == "voicestudio":
+        return voicestudio.synthesize(text, language, settings, vs)
 
     if not settings.reference_sample_path or not os.path.exists(settings.reference_sample_path):
         raise FileNotFoundError(
@@ -229,14 +240,32 @@ def run() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     settings = get_worker_settings()
     log.info(
-        "sound-worker '%s' starting; VPS=%s voice=%s",
+        "sound-worker '%s' starting; VPS=%s engine=%s voice=%s",
         settings.worker_id,
         settings.vps_api_url,
+        settings.tts_engine,
         settings.voice_id,
     )
 
-    with _client(settings) as client:
+    vs = voicestudio.client(settings) if settings.tts_engine == "voicestudio" else None
+    vs_ready: bool | None = None
+    with _client(settings) as client, vs or contextlib.nullcontext():
         while True:
+            # Don't claim while VoiceStudio is starting (model download/load) — a claimed job
+            # would burn its attempts failing against a cold engine.
+            if vs is not None:
+                ready = voicestudio.health_ok(vs)
+                if ready != vs_ready:
+                    log.info(
+                        "VoiceStudio at %s is %s",
+                        settings.voicestudio_url,
+                        "ready" if ready else "not ready; holding off on claiming jobs",
+                    )
+                    vs_ready = ready
+                if not ready:
+                    time.sleep(settings.poll_interval_seconds)
+                    continue
+
             try:
                 job = claim_job(client, settings.worker_id)
             except httpx.HTTPError as exc:
@@ -251,7 +280,7 @@ def run() -> None:
             job_id = job["id"]
             log.info("claimed job %s (episode %s)", job_id, job.get("episode_id"))
             try:
-                audio = synthesize(job["text"], settings)
+                audio = synthesize(job["text"], settings, language=job.get("language"), vs=vs)
                 complete_job(client, job_id, audio)
                 log.info("completed job %s", job_id)
             except Exception as exc:  # noqa: BLE001 — report and keep the loop alive
