@@ -53,16 +53,26 @@ INDEX = """
   <p class="muted">Approve, request edits, or reject each channel. Only approved drafts can be published.</p>
   <p><a class="createlink" href="/create/post">➕ Create Post</a> &nbsp; <a class="createlink" href="/create/episode">➕ Create Episode</a> &nbsp; <a class="createlink" href="/manage">🗂️ Manage content</a></p>
 
-  {% macro render_audio(m) %}
+  {% macro render_audio(m, narration) %}
     <div class="channel">
       <h4>{{ m.title }} <span class="badge">{{ m.language }}</span>
         <span class="badge {{ m.status }}">{{ m.status }}</span>
-        {% if m.audio_url %}<span class="badge approved">audio uploaded{% if m.duration %} · {{ m.duration }}s{% endif %}</span>{% else %}<span class="badge pending_review">no audio yet</span>{% endif %}
+        {% if m.audio_url %}<span class="badge approved">audio{% if m.duration %} · {{ m.duration }}s{% endif %}</span>{% else %}<span class="badge pending_review">no audio yet</span>{% endif %}
       </h4>
+      {% if narration and m.audio_url %}<audio controls preload="none" src="{{ m.audio_url }}"></audio>{% endif %}
       <p>
         <a href="/episode/{{ m.id }}/script">⬇ Baixar roteiro (download script)</a>
         {% if m.audio_url %} · <a href="{{ m.audio_url }}">▶ current audio</a>{% endif %}
       </p>
+      {% if narration %}
+      <details class="renarrate">
+        <summary>✏️ Edit script &amp; re-narrate</summary>
+        <form method="post" action="/episode/{{ m.id }}/renarrate">
+          <textarea name="script" rows="14">{{ m.script }}</textarea>
+          <button class="edit" type="submit">Save &amp; re-narrate</button>
+        </form>
+      </details>
+      {% endif %}
       <form method="post" action="/episode/{{ m.id }}/audio" enctype="multipart/form-data">
         <input type="file" name="audio" accept="audio/*" required />
         <button class="approve" type="submit">Enviar áudio</button>
@@ -101,9 +111,14 @@ INDEX = """
     <div class="tabpanel" id="eppanel-review">
       {% if manual_review %}
       <section class="topic">
+        {% if secondary_narration %}
+        <h2>🎙️ English episodes — edit script &amp; re-narrate</h2>
+        <p class="muted">Auto-narrated by the home GPU worker. Edit the script and re-narrate, or upload your own MP3 instead.</p>
+        {% else %}
         <h2>🎙️ English audio — record &amp; upload</h2>
         <p class="muted">Download each script, record it in your own voice, and upload the MP3. Available any time, independent of the review queue.</p>
-        {% for m in manual_review %}{{ render_audio(m) }}{% endfor %}
+        {% endif %}
+        {% for m in manual_review %}{{ render_audio(m, secondary_narration) }}{% endfor %}
       </section>
       {% endif %}
       {% if ep_review %}
@@ -119,9 +134,9 @@ INDEX = """
     <div class="tabpanel" id="eppanel-pub">
       {% if manual_pub %}
       <section class="topic">
-        <h2>🎙️ English audio — published</h2>
-        <p class="muted">Already-published English episodes. Re-upload the MP3 to replace the live audio.</p>
-        {% for m in manual_pub %}{{ render_audio(m) }}{% endfor %}
+        <h2>🎙️ English episodes — published</h2>
+        <p class="muted">Already-published English episodes stay live. {% if secondary_narration %}Edit the script and re-narrate, or re-upload{% else %}Re-upload{% endif %} the MP3 to replace the live audio.</p>
+        {% for m in manual_pub %}{{ render_audio(m, secondary_narration) }}{% endfor %}
       </section>
       {% endif %}
       {% if ep_pub %}
@@ -149,7 +164,7 @@ INDEX = """
       {% set L = item.langs[lang] %}
       {% set manual = lang != primary %}
       <div class="lang">
-        <h3 class="langhead">🌐 {{ lang }}{% if manual %} <span class="muted">(manual audio)</span>{% endif %}</h3>
+        <h3 class="langhead">🌐 {{ lang }}{% if manual and not secondary_narration %} <span class="muted">(manual audio)</span>{% endif %}</h3>
         {% for ch in ['blog', 'newsletter', 'podcast'] %}
           {% set d = L.drafts.get(ch) %}
           {% if d %}
@@ -159,7 +174,11 @@ INDEX = """
               {% if L.episode and L.episode.audio_url %}
                 <audio controls preload="none" src="{{ L.episode.audio_url }}"></audio>
               {% elif manual and L.episode %}
+                {% if secondary_narration %}
+                <p class="muted">Narrated by the home GPU worker once approved. Or download the script, record it, and upload the MP3:</p>
+                {% else %}
                 <p class="muted">No auto-narration for {{ lang }}. Download the script, record it, and upload the MP3:</p>
+                {% endif %}
                 <p>
                   <a href="/episode/{{ L.episode.id }}/script">⬇ Baixar roteiro</a>
                 </p>
@@ -271,8 +290,8 @@ CREATE_EPISODE = (
       <label for="{{ L.prefix }}_audio">Upload audio (MP3, optional)</label>
       <input id="{{ L.prefix }}_audio" type="file" name="{{ L.prefix }}_audio" accept="audio/*" />
       <p class="hint">The file uploads when you click <strong>Save</strong> below — there's no separate upload button. Leave empty to add audio later from Manage.</p>
-      {% if L.prefix == 'primary' %}
-      <label style="font-weight:400"><input type="checkbox" name="primary_narrate" value="1" /> …or queue {{ primary }} narration now (home GPU sound-worker) — ignored if you upload a file above</label>
+      {% if L.prefix == 'primary' or secondary_narration %}
+      <label style="font-weight:400"><input type="checkbox" name="{{ L.prefix }}_narrate" value="1" /> …or queue {{ L.label }} narration now (home GPU sound-worker) — ignored if you upload a file above</label>
       {% endif %}
     </fieldset>
     {% endfor %}
@@ -398,7 +417,7 @@ MANAGE = """
       {% if not pub_eps %}<tr class="noitems"><td colspan="5" class="muted">No published episodes.</td></tr>{% endif %}
     </table>
   </details>
-  <p class="muted">To edit an episode's script or re-narrate the {{ primary }} audio, use the “Episodes — edit script &amp; re-narrate” section on the <a href="/">review queue page</a>.</p>
+  <p class="muted">To edit an episode's script or re-narrate its audio, use the “edit script &amp; re-narrate” sections on the <a href="/">review queue page</a>.</p>
 
   <script>
   (function () {

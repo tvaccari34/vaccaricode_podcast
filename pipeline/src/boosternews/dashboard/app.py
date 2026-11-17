@@ -4,9 +4,10 @@ Runs on the VPS (private). Shows pending drafts per topic and language — blog 
 blurb, and a podcast audio preview (or script) — and records per-channel approve / request-edit /
 reject decisions. Approval is the gate before publishing.
 
-For secondary-language (English) episodes there is no auto-narration: the reviewer downloads the
-script, records the audio manually, and uploads the MP3 here — which stores it and marks the
-episode ready.
+Secondary-language (English) episodes are auto-narrated like the primary ones when
+``narration_secondary_enabled`` is set (and then get edit-script & re-narrate too). Otherwise, or
+whenever preferred, the reviewer downloads the script, records the audio manually, and uploads the
+MP3 here — which stores it and marks the episode ready.
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ def index(_auth: None = Depends(require_auth)) -> HTMLResponse:
         primary=s.primary_language_code,
         manual=manual,
         episodes=episodes,
+        secondary_narration=s.narration_secondary_enabled,
     )
     return HTMLResponse(html)
 
@@ -180,9 +182,12 @@ def create_post(
 
 @app.get("/create/episode", response_class=HTMLResponse)
 def create_episode_form(_auth: None = Depends(require_auth)) -> HTMLResponse:
+    s = get_settings()
     return HTMLResponse(
         _env.get_template("create_episode.html").render(
-            langs=_lang_fields(), primary=get_settings().primary_language_code
+            langs=_lang_fields(),
+            primary=s.primary_language_code,
+            secondary_narration=s.narration_secondary_enabled,
         )
     )
 
@@ -197,14 +202,16 @@ async def create_episode(
     secondary_title: str = Form(""),
     secondary_script: str = Form(""),
     secondary_notes: str = Form(""),
+    secondary_narrate: str = Form(""),
     secondary_audio: UploadFile | None = File(None),
     action: str = Form("draft"),
     _auth: None = Depends(require_auth),
 ) -> RedirectResponse:
     """Create a hand-written podcast episode in one or both languages.
 
-    Per language you can upload an MP3 now, queue pt-BR auto-narration, or add audio later. An
-    uploaded file takes precedence over narration.
+    Per language you can upload an MP3 now, queue auto-narration (primary always; secondary when
+    ``narration_secondary_enabled``), or add audio later. An uploaded file takes precedence over
+    narration.
     """
     s = get_settings()
     uploaded = {
@@ -217,7 +224,13 @@ async def create_episode(
     }
     rows = [
         (s.primary_language_code, primary_title, primary_script, primary_notes, bool(primary_narrate)),
-        (s.secondary_language_code, secondary_title, secondary_script, secondary_notes, False),
+        (
+            s.secondary_language_code,
+            secondary_title,
+            secondary_script,
+            secondary_notes,
+            bool(secondary_narrate) and s.narration_secondary_enabled,
+        ),
     ]
     chosen = [
         (lang, t.strip(), sc.strip(), n.strip(), narr)
@@ -243,7 +256,7 @@ async def create_episode(
             data = uploaded.get(lang) or b""
             if data:
                 to_store.append((episode_id, data))  # uploaded audio wins over narration
-            elif narrate and lang == s.primary_language_code:
+            elif narrate:  # the job carries the episode's language; the worker picks the voice
                 repo.enqueue_narration(conn, episode_id, voice or "tiago", script)
         conn.commit()
     # Store uploaded audio after the episode rows are committed (the helper opens its own tx).
@@ -262,10 +275,11 @@ def renarrate(
     script: str = Form(...),
     _auth: None = Depends(require_auth),
 ) -> RedirectResponse:
-    """Save an edited narration script and queue a fresh auto-narration job (pt-BR sound-worker).
+    """Save an edited narration script and queue a fresh auto-narration job.
 
     Clears the episode's old audio and enqueues a new job; the home GPU worker picks it up on its
-    next poll and regenerates the MP3 in the cloned voice.
+    next poll and regenerates the MP3 in the cloned voice. The job carries the episode's language,
+    so this works for the primary language and (when offered) the secondary one.
     """
     ep = repo.get_episode(episode_id)
     if not ep:

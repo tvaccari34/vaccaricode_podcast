@@ -321,13 +321,17 @@ def get_draft_body(topic_id: str, channel: str, language: str = "pt-BR") -> str 
 
 
 def list_secondary_episodes(limit: int = 50) -> list[dict]:
-    """Episodes in a non-primary language (manual audio): id, language, title, status, audio."""
+    """Episodes in a non-primary language: id, language, title, status, audio, script.
+
+    Their audio is uploaded by hand, or auto-narrated when ``narration_secondary_enabled`` is set
+    (then the dashboard also offers edit-script & re-narrate for them).
+    """
     from .config import get_settings
     from .db import get_conn
 
     with get_conn(autocommit=True) as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT e.id, e.language, e.title, e.status, e.audio_url, e.duration_seconds "
+            "SELECT e.id, e.language, e.title, e.status, e.audio_url, e.duration_seconds, e.script "
             "FROM episodes e JOIN topics t ON t.id = e.topic_id "
             "WHERE e.language <> %s ORDER BY t.score DESC, e.updated_at DESC LIMIT %s",
             (get_settings().primary_language_code, limit),
@@ -340,6 +344,7 @@ def list_secondary_episodes(limit: int = 50) -> list[dict]:
                 "status": r[3],
                 "audio_url": r[4],
                 "duration": r[5],
+                "script": r[6],
             }
             for r in cur.fetchall()
         ]
