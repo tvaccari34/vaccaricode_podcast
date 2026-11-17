@@ -1,4 +1,6 @@
 ---
+import SocialLinks from "../components/SocialLinks.astro";
+import { SOCIAL } from "../lib/social.js";
 import "../styles/global.css";
 import { STRINGS, href } from "../lib/i18n.js";
 import { SITE_NAME, AUTHOR, DEFAULT_OG_IMAGE, OG_LOCALE, canonicalUrl } from "../lib/seo.js";
@@ -30,7 +32,7 @@ const imageUrl = new URL(image || DEFAULT_OG_IMAGE, Astro.site).href;
 // X/Twitter attribution handle (e.g. "@tiagovaccari"); site/creator tags emit only when set.
 const twitterHandle = import.meta.env.PUBLIC_TWITTER_HANDLE || "";
 
-const person = { "@type": "Person", name: AUTHOR };
+const person = { "@type": "Person", name: AUTHOR, sameAs: SOCIAL.map((s) => s.url) };
 const websiteLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
@@ -145,6 +147,7 @@ const articleLd = ogType === "article" ? {
         © {new Date().getFullYear()} Tiago Vaccari · {t.footer} ·
         <a href={href(lang, "/rss.xml")}>{t.rssLabel}</a> ·
         <a href={href(lang, "/podcast/feed.xml")}>{t.feedLabel}</a>
+        <SocialLinks variant="compact" />
       </div>
       {umamiId && (
         <div class="wrap" style="opacity:.65;font-size:.82em;margin-top:.35rem">

@@ -2,6 +2,7 @@
 // Home hero: brand mark, gradient headline, intro, and the TECH · PROGRAMMING · AI
 // tagline. Shared by the pt-BR (/) and en (/en) homepages so they can't drift.
 import { STRINGS, href } from "../lib/i18n.js";
+import SocialLinks from "./SocialLinks.astro";
 const { lang } = Astro.props;
 const t = STRINGS[lang];
 ---
@@ -14,4 +15,5 @@ const t = STRINGS[lang];
     <span>Programming</span><span class="dot m"></span>
     <span>AI</span>
   </div>
+  <SocialLinks />
 </section>
