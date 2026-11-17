@@ -37,5 +37,10 @@ The codebase SHALL NOT contain an ElevenLabs provider, `ELEVENLABS_*` settings o
 `NARRATION_SECONDARY_ENABLED=true` SHALL queue narration jobs for secondary-language episodes under every provider, including `local`, and the home worker SHALL narrate them in the secondary-language voice.
 
 #### Scenario: English auto-narration with the local provider
-- **WHEN** `NARRATION_PROVIDER=local`, `NARRATION_SECONDARY_ENABLED=true` and a bilingual post is generated
+- **WHEN** `NARRATION_PROVIDER=local`, `NARRATION_SECONDARY_ENABLED=true` and the podcast drafts of a bilingual post are approved
 - **THEN** two narration jobs are queued, one per language, and each is claimable by the home worker with its own `language`
+
+#### Scenario: Dashboard narration controls for the secondary language
+- **WHEN** `NARRATION_SECONDARY_ENABLED=true`
+- **THEN** the dashboard offers edit-script & re-narrate for secondary-language episodes (alongside the manual MP3 upload), and Create Episode can queue secondary-language narration
+- **AND** when it is `false`, secondary-language episodes offer only the manual MP3 upload, as before

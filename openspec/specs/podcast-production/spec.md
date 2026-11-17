@@ -2,13 +2,11 @@
 
 ## Purpose
 Turning generated scripts into published podcast episodes with narrated audio and a compliant podcast feed.
-
 ## Requirements
-
 ### Requirement: Narration backend is pluggable
-Podcast narration SHALL be produced by a configurable backend (local GPU worker, ElevenLabs, or a
-custom HTTP model), reusing the same narration queue, audio assembly, storage, and episode lifecycle.
-The local GPU worker remains the default.
+Podcast narration SHALL be produced by a configurable backend (the local GPU worker, which uses a
+self-hosted VoiceStudio by default, or a custom HTTP model), reusing the same narration queue, audio
+assembly, storage, and episode lifecycle. The local GPU worker remains the default.
 
 #### Scenario: Auto-narrate with the configured backend
 - **WHEN** an episode needs narration and a backend is configured
@@ -91,3 +89,4 @@ auto-narrate the secondary language (English) as well, instead of requiring a ma
 #### Scenario: Default keeps manual English audio
 - **WHEN** secondary-language narration is disabled (default)
 - **THEN** English episodes still require a manually uploaded MP3, as today
+
