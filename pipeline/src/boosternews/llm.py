@@ -19,8 +19,16 @@ from .config import get_settings
 
 @lru_cache(maxsize=1)
 def get_client() -> genai.Client:
-    """Return a cached Gemini client built from the configured API key."""
-    return genai.Client(api_key=get_settings().gemini_api_key)
+    """Return a cached Gemini client built from the configured API key.
+
+    Pinned to the ``v1beta`` API: newer google-genai releases default to ``v1``, which rejects
+    ``system_instruction`` ("Developer instruction is not enabled for api version v1") and broke
+    daily generation after an image rebuild pulled google-genai 3.x.
+    """
+    return genai.Client(
+        api_key=get_settings().gemini_api_key,
+        http_options=types.HttpOptions(api_version="v1beta"),
+    )
 
 
 def generate(
