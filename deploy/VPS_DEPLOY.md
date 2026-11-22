@@ -262,6 +262,15 @@ $DC run --rm pipeline python -m boosternews generate     # pt-BR + English draft
 Basic Auth user/password). Approve the blog + newsletter per language; for the English episode,
 download the script, record it, and upload the MP3 there.
 
+**Author profile (recommended).** Generated posts and episodes credit the source authors for
+their experiences and give *your* take on top. To let them draw on your real background and
+opinions, create the profile once; edits apply on the next generation, with no redeploy:
+
+```bash
+cp config/author_profile.example.md config/author_profile.md   # gitignored
+nano config/author_profile.md                                   # true facts + opinions only
+```
+
 Then publish and build the static site:
 
 ```bash

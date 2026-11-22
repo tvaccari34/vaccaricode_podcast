@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Content generation: author identity + optional brand-voice override.
     author_name: str = "Tiago Vaccari"
     brand_voice: str = ""
+    # Optional author profile (real background, positions, true anecdotes) — the only source the
+    # model may use for the host's own experiences. The file (mounted from config/ in the repo)
+    # wins over the inline text; it is re-read on every generation, so edits need no redeploy.
+    author_profile: str = ""
+    author_profile_file: str = "/app/config/author_profile.md"
     # Language of generated content (blog/newsletter/podcast). e.g. "Brazilian Portuguese", "English".
     content_language: str = "Brazilian Portuguese"
     # Heading used for the auto-appended sources section (localized).

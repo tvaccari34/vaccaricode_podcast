@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import date
+from urllib.parse import urlparse
 
 from . import repository as repo
 from .config import get_settings
@@ -18,15 +19,18 @@ from .db import get_conn
 from .llm import generate as llm_generate
 from .utm import with_utm
 from .prompts import (
+    AUTHOR_PROFILE_BLOCK,
     DEFAULT_BRAND_VOICE,
     FORMAT_INSTRUCTION,
     FORMAT_SPECS,
     GROUNDING_RULE,
+    PERSPECTIVE_RULE,
 )
 
 log = logging.getLogger("boosternews.generate")
 
 MAX_SOURCE_CHARS = 6000
+MAX_PROFILE_CHARS = 6000
 PREVIEW_CHARS = 280
 
 _FENCE_RE = re.compile(r"^```[a-zA-Z]*\n(.*)\n```$", re.DOTALL)
@@ -40,6 +44,49 @@ def brand_voice() -> str:
     return DEFAULT_BRAND_VOICE.format(
         author=s.author_name, site=s.site_domain, language=s.content_language
     )
+
+
+def author_profile() -> str:
+    """The author's profile text: the file if present and non-empty, else AUTHOR_PROFILE, else "".
+
+    Read on every call (no caching) so edits to the mounted file apply on the next generation.
+    """
+    s = get_settings()
+    text = ""
+    if s.author_profile_file:
+        try:
+            with open(s.author_profile_file, encoding="utf-8") as f:
+                text = f.read().strip()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            log.warning("cannot read author profile %s: %s", s.author_profile_file, exc)
+    if not text:
+        text = (s.author_profile or "").strip()
+    if len(text) > MAX_PROFILE_CHARS:
+        log.warning("author profile is %d chars; truncating to %d", len(text), MAX_PROFILE_CHARS)
+        text = text[:MAX_PROFILE_CHARS]
+    return text
+
+
+def system_instruction() -> str:
+    """System instruction for generation: the brand voice plus the author profile, if any."""
+    system = brand_voice()
+    profile = author_profile()
+    if profile:
+        block = AUTHOR_PROFILE_BLOCK.format(author=get_settings().author_name, profile=profile)
+        system = f"{system}\n\n{block}"
+    return system
+
+
+def source_publishers(urls: list[str]) -> list[str]:
+    """Unique source hosts (without ``www.``), in URL order — the attribution handle."""
+    seen: list[str] = []
+    for u in urls:
+        host = (urlparse(u).hostname or "").lower().removeprefix("www.")
+        if host and host not in seen:
+            seen.append(host)
+    return seen
 
 
 def _truncate(text: str, limit: int = MAX_SOURCE_CHARS) -> str:
@@ -56,6 +103,9 @@ def source_block(topic: dict) -> str:
         parts.append("ARTICLE:\n" + _truncate(text))
     urls = topic.get("urls") or []
     if urls:
+        publishers = source_publishers(urls)
+        if publishers:
+            parts.append("PUBLISHED BY: " + ", ".join(publishers))
         parts.append("SOURCE URLS:\n" + "\n".join(urls))
     return "\n\n".join(parts)
 
@@ -66,6 +116,7 @@ def build_prompt(topic: dict, fmt: str) -> str:
     return (
         f"LANGUAGE: Write the entire {fmt} in {s.content_language}. Do not answer in English.\n\n"
         f"{GROUNDING_RULE}\n\n"
+        f"{PERSPECTIVE_RULE.format(author=s.author_name)}\n\n"
         f"Constraints for this {fmt}: {spec}\n\n"
         f"=== SOURCE MATERIAL ===\n{source_block(topic)}\n=== END SOURCE MATERIAL ===\n\n"
         f"{FORMAT_INSTRUCTION[fmt]}"
@@ -224,7 +275,7 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
     if not topic:
         raise ValueError(f"topic {topic_id} not found")
 
-    system = brand_voice()
+    system = system_instruction()
     sources = topic.get("urls") or []
     title = localized_title(topic["title"], gen=gen)
     meta = {"sources": sources}
@@ -261,13 +312,18 @@ def generate_for_topic(topic_id: str, *, gen=llm_generate) -> dict:
             f"{s.podcast_intro_en}\n\n{en_raw_script}" if s.podcast_intro_en else en_raw_script
         )
         if s.podcast_outro_en:
-            en_outro = s.podcast_outro_en.format(url=spoken_subscribe_url(s.secondary_language_code))
+            en_outro = s.podcast_outro_en.format(
+                url=spoken_subscribe_url(s.secondary_language_code)
+            )
             en_script = f"{en_script}\n\n{en_outro}"
         en_cta = subscribe_cta(s.secondary_language_code)  # on-site blog CTA — untagged
         en_pod_cta = subscribe_cta(s.secondary_language_code, utm=pod_utm)  # show notes — tagged
         en_blog = append_subscribe_cta(
             assemble_blog_markdown(
-                en_title, en_blog_body, sources, topic_id,
+                en_title,
+                en_blog_body,
+                sources,
+                topic_id,
                 sources_heading=s.secondary_sources_heading,
             ),
             en_cta,

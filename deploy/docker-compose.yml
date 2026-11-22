@@ -82,6 +82,8 @@ services:
       dockerfile: pipeline/Dockerfile
     restart: unless-stopped
     env_file: ../.env
+    volumes:
+      - ../config:/app/config:ro  # author profile (config/author_profile.md, gitignored)
     depends_on:
       postgres:
         condition: service_healthy
@@ -239,6 +241,8 @@ services:
       dockerfile: pipeline/Dockerfile
     restart: unless-stopped
     env_file: ../.env
+    volumes:
+      - ../config:/app/config:ro  # author profile (config/author_profile.md, gitignored)
     command: ["python", "-m", "boosternews.scheduler"]
     depends_on:
       postgres:
@@ -252,6 +256,8 @@ services:
       dockerfile: pipeline/Dockerfile
     restart: unless-stopped
     env_file: ../.env
+    volumes:
+      - ../config:/app/config:ro  # author profile (config/author_profile.md, gitignored)
     command:
       ["uvicorn", "boosternews.dashboard.app:app", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
