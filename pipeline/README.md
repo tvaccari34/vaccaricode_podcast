@@ -57,6 +57,15 @@ newsletter blurb — persisted as `drafts` (pending_review) plus an `episodes` r
 the same topic. Output is grounded in the extracted article and attributes the source URLs. The
 LLM lives behind `boosternews.llm`; brand voice + per-format specs are in `prompts.py`.
 
+Perspective: the source material is someone else's work, so every prompt tells the model to report
+first-person experiences from the source in the third person, credited to the author/publisher
+(the source URL hosts are passed as `PUBLISHED BY`), and to use the host's own voice only for
+opinion and takeaways. The host's personal experiences come only from the optional **author
+profile**: `config/author_profile.md` (gitignored; copy `config/author_profile.example.md`), mounted
+read-only at `/app/config` and re-read on every generation (`AUTHOR_PROFILE_FILE` overrides the
+path; `AUTHOR_PROFILE` is an inline-text fallback). Without a profile, no personal anecdotes are
+claimed.
+
 Trend discovery: each enabled source is fetched (failures isolated per source), items are
 scored (recency + engagement + cross-source corroboration), deduplicated by normalized title,
 and merged into the `topics` queue. Extraction (trafilatura) stores clean article text used

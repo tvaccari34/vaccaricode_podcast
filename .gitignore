@@ -40,3 +40,6 @@ voice/reference*.wav
 Thumbs.db
 .idea/
 .vscode/
+
+# Author profile (personal; mounted into the pipeline containers)
+config/author_profile.md

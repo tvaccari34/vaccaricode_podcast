@@ -148,6 +148,9 @@ services:
     image: boosternews/pipeline:local
     command: ["python", "-m", "boosternews.scheduler"]
     environment: *app-env
+    volumes:
+      # Author profile for generation (config/author_profile.md, gitignored); read-only.
+      - /root/vaccaricode_podcast/config:/app/config:ro
     networks: [BoosterBot_Network]
     deploy:
       replicas: 1
@@ -156,6 +159,9 @@ services:
     image: boosternews/pipeline:local
     command: ["uvicorn", "boosternews.dashboard.app:app", "--host", "0.0.0.0", "--port", "8080"]
     environment: *app-env
+    volumes:
+      # Author profile for generation (config/author_profile.md, gitignored); read-only.
+      - /root/vaccaricode_podcast/config:/app/config:ro
     networks: [BoosterBot_Network]
     deploy:
       replicas: 1
