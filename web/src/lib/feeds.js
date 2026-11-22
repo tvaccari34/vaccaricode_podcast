@@ -56,10 +56,12 @@ export async function blogRss(lang, siteUrl) {
   const posts = await getPublishedPosts(lang);
   const items = posts
     .map((p) => {
-      const link = `${base}/blog/${p.topic_id}`;
+      // guid keeps its original (slash-less) value so readers don't see old posts as new.
+      const guid = `${base}/blog/${p.topic_id}`;
+      const link = `${guid}/`;
       const { content } = safeMatter(p.body);
       const desc = content.replace(/[#*`>]/g, "").trim().slice(0, 300);
-      return `<item><title>${esc(p.title)}</title><link>${link}</link><guid>${link}</guid><pubDate>${new Date(p.updated_at).toUTCString()}</pubDate><description>${esc(desc)}</description></item>`;
+      return `<item><title>${esc(p.title)}</title><link>${link}</link><guid>${guid}</guid><pubDate>${new Date(p.updated_at).toUTCString()}</pubDate><description>${esc(desc)}</description></item>`;
     })
     .join("");
   const langLabel = lang === "en" ? " (EN)" : "";
@@ -77,12 +79,15 @@ export async function podcastFeed(lang, siteUrl) {
   const episodes = await getPublishedEpisodes(lang, { withAudioOnly: true });
   const items = episodes
     .map((e) => {
-      const link = `${base}/podcast/${e.topic_id}`;
+      // guid keeps its original (slash-less) value: podcast apps key episodes on it, so changing
+      // it would re-list every episode as new. Only <link> moves to the final (slash) URL.
+      const guid = `${base}/podcast/${e.topic_id}`;
+      const link = `${guid}/`;
       const enclosure = `<enclosure url="${esc(withOp3(e.audio_url))}" type="audio/mpeg" length="${e.file_size_bytes || 0}" />`;
       const duration = e.duration_seconds ? `<itunes:duration>${e.duration_seconds}</itunes:duration>` : "";
       return (
         `<item><title>${esc(e.title)}</title><link>${link}</link>` +
-        `<guid isPermaLink="true">${link}</guid>` +
+        `<guid isPermaLink="true">${guid}</guid>` +
         `<pubDate>${new Date(e.updated_at).toUTCString()}</pubDate>` +
         `<description>${esc(e.show_notes)}</description>` +
         `<itunes:summary>${esc(e.show_notes)}</itunes:summary>` +

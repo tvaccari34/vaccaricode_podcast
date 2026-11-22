@@ -77,8 +77,8 @@ def test_strip_code_fences():
 
 def test_subscribe_url_per_language():
     # pt-BR lives at the site root; secondary languages sit under /<code>.
-    assert subscribe_url("pt-BR") == "http://localhost/subscribe"
-    assert subscribe_url("en") == "http://localhost/en/subscribe"
+    assert subscribe_url("pt-BR") == "http://localhost/subscribe/"
+    assert subscribe_url("en") == "http://localhost/en/subscribe/"
 
 
 def test_subscribe_cta_is_localized_and_linked():

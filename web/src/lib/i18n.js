@@ -80,7 +80,17 @@ export const STRINGS = {
   },
 };
 
-/** Prefix a path for a language: pt-BR → "/blog", en → "/en/blog". */
+/**
+ * Ensure a site path ends in "/" (pages are built as dir/index.html, so "/blog" would 301 to
+ * "/blog/"). Files ("/rss.xml"), anchors and query strings are left alone.
+ */
+export function withSlash(path) {
+  if (!path) return "/";
+  if (/[?#]/.test(path) || path.endsWith("/") || /\.[^/]+$/.test(path)) return path;
+  return path + "/";
+}
+
+/** Prefix a path for a language: pt-BR → "/blog/", en → "/en/blog/" (always the final URL). */
 export function href(lang, path) {
-  return (STRINGS[lang].base + path) || "/";
+  return withSlash(STRINGS[lang].base + path);
 }
