@@ -2,20 +2,22 @@
 import SocialLinks from "../components/SocialLinks.astro";
 import { SOCIAL } from "../lib/social.js";
 import "../styles/global.css";
-import { STRINGS, href } from "../lib/i18n.js";
+import { STRINGS, href, withSlash } from "../lib/i18n.js";
 import { SITE_NAME, AUTHOR, DEFAULT_OG_IMAGE, OG_LOCALE, canonicalUrl } from "../lib/seo.js";
 
 const {
   title, description, lang = "pt-BR", alt, wide = false,
   // SEO/social: ogType "article" for posts/episodes; articleType + publishedTime feed the JSON-LD.
   ogType = "website", image, articleType, publishedTime,
+  // noindex: keep a page out of search results (e.g. the 404 page).
+  noindex = false,
 } = Astro.props;
 const t = STRINGS[lang];
 const siteName = "Vaccari's Code Podcast";
 const fullTitle = title ? `${title} — ${siteName}` : `${siteName} — ${t.tagline}`;
 // Where the PT/EN toggle points: the equivalent page if given, else the other language's home.
 const otherHome = STRINGS[t.other].base || "/";
-const toggleHref = alt || otherHome;
+const toggleHref = withSlash(alt || otherHome);
 // Strings the client-side search script needs (labels used in attributes stay inline below).
 const searchStrings = { empty: t.searchEmpty, error: t.searchError, blog: t.nav.blog, podcast: t.nav.podcast };
 // Umami analytics: emitted only when configured (dev/local builds stay clean; unset = kill switch).
@@ -67,7 +69,7 @@ const articleLd = ogType === "article" ? {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={metaDescription} />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={noindex ? "noindex, follow" : "index, follow"} />
     <link rel="canonical" href={canonical} />
     <meta name="theme-color" content="#05060a" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

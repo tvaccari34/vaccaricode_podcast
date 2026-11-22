@@ -67,7 +67,7 @@ def publish_topic(topic_id: str) -> dict[str, str]:
             prefix = _lang_prefix(d["language"])
             if d["channel"] == "podcast":
                 repo.publish_episode(conn, topic_id, d["language"])
-                url = f"{settings.public_site_url.rstrip('/')}{prefix}/podcast/{topic_id}"
+                url = f"{settings.public_site_url.rstrip('/')}{prefix}/podcast/{topic_id}/"
                 repo.record_publication(
                     conn, topic_id, "podcast", d["id"], url, None, d["language"]
                 )
@@ -79,7 +79,7 @@ def publish_topic(topic_id: str) -> dict[str, str]:
                 )
                 summary[key] = "published (weekly digest)"
             else:  # blog
-                url = f"{settings.public_site_url.rstrip('/')}{prefix}/blog/{topic_id}"
+                url = f"{settings.public_site_url.rstrip('/')}{prefix}/blog/{topic_id}/"
                 repo.record_publication(conn, topic_id, "blog", d["id"], url, None, d["language"])
                 summary[key] = "published"
 

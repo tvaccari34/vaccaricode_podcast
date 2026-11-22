@@ -1,0 +1,20 @@
+---
+// Served by nginx (error_page 404 /404.html) for any unknown path, with a real 404 status.
+// noindex keeps it out of search results; bilingual because it can be hit from either language.
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Página não encontrada" lang="pt-BR" alt="/en/" noindex description="Página não encontrada.">
+  <article>
+    <h1>Página não encontrada</h1>
+    <p class="muted">
+      Esse conteúdo não existe mais ou mudou de endereço. Veja os <a href="/blog/">posts</a>, os
+      <a href="/podcast/">episódios</a> ou volte para a <a href="/">página inicial</a>.
+    </p>
+    <h2 lang="en">Page not found</h2>
+    <p class="muted" lang="en">
+      This page no longer exists or has moved. Browse the <a href="/en/blog/">posts</a>, the
+      <a href="/en/podcast/">episodes</a>, or go back to the <a href="/en/">home page</a>.
+    </p>
+  </article>
+</Base>

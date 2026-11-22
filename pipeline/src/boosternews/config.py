@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     # {url} is filled with the language's subscribe page under public_site_url (so set that to the
     # real domain in prod — it doubles as the permalink base below).
     subscribe_cta_enabled: bool = True
-    subscribe_path: str = "/subscribe"
+    subscribe_path: str = "/subscribe/"
     subscribe_cta: str = (
         "📬 **Gostou?** Assine a newsletter do Vaccari's Code e receba as próximas tendências "
         "em software e IA direto no seu e-mail: **[Assinar aqui]({url})**"
